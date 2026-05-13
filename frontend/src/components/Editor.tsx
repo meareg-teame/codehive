@@ -52,6 +52,7 @@ import { io } from "socket.io-client";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { VideoConferencePanel } from "./video/VideoConferencePanel";
 
 function cleanError(stderr) {
   const firstLine = stderr
@@ -135,6 +136,7 @@ function Editor() {
 
   //socket coonect
   const socketRef = useRef(null);
+  const [socketConnection, setSocketConnection] = useState(null);
 
   useEffect(() => {
     const socket = io(BACKEND_URL, {
@@ -143,6 +145,7 @@ function Editor() {
     });
 
     socketRef.current = socket;
+    setSocketConnection(socket);
 
     socket.on("updated files", (data) => {
       setProjectDetails({
@@ -959,6 +962,20 @@ function Editor() {
                 </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>
+
+            {socketConnection && user && (
+              <>
+                <ResizableHandle className="bg-[#1C1D24] w-1" />
+                <ResizablePanel defaultSize={20} className="flex min-w-[20rem] max-w-[25rem] flex-col overflow-hidden p-2">
+                  <VideoConferencePanel
+                    roomId={projectId}
+                    socket={socketConnection}
+                    userId={user}
+                    userName={user}
+                  />
+                </ResizablePanel>
+              </>
+            )}
           </ResizablePanelGroup>
         </div>
 

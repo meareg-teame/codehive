@@ -64,48 +64,19 @@ function Dashboard() {
     nodejs: "JavaScript",
     java: "Java",
   };
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   useEffect(() => {
     document.title = "Dashboard - CodeHive";
-    axios
-      .post(BACKEND_URL + "/auth/user", {}, { withCredentials: true })
-      .then(() => {
-        navigate("/dashboard");
-        try {
-          axios
-            .post(
-              BACKEND_URL + "/auth/user-info",
-              {},
-              { withCredentials: true }
-            )
-            .then((res) => {
-              setUserData(res.data.userData);
-            });
-        } catch (e) {
-          console.log(e);
-        }
-        try {
-          axios
-            .post(
-              BACKEND_URL + "/project/get-projects",
-              {},
-              { withCredentials: true }
-            )
-            .then((res) => {
-              setUserProjects(res.data.projects.reverse());
-            });
-        } catch (e) {
-          console.log(e);
-        }
-      })
-      .catch(() => {
-        navigate("/");
-      });
-  }, [BACKEND_URL, navigate]);
+    setUserData({
+      name: "Local User",
+      email: "local@codehive.dev",
+      photoUrl: "",
+    });
+    navigate("/dashboard");
+  }, [navigate]);
 
   const socketRef = useRef(null);
   useEffect(() => {
-    const socket = io(BACKEND_URL, {
+    const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:8080", {
       transports: ["polling", "websocket"],
       withCredentials: true,
     });
@@ -113,7 +84,7 @@ function Dashboard() {
     return () => {
       socket.disconnect();
     };
-  }, [BACKEND_URL]);
+  }, []);
 
   useEffect(() => {
     const socket = socketRef.current;

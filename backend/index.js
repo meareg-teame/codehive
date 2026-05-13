@@ -56,6 +56,8 @@ server.listen(8080, () => {
 
 //socket io part gulo
 
+const roomParticipants = new Map();
+
 io.on("connection", (socket) => {
   socket.on("request access", async (data) => {
     const projectId = data.projectId;
@@ -106,6 +108,94 @@ io.on("connection", (socket) => {
     await Account.updateOne({email:projectData.owner},{accessManagementProjects:accessRequestsForOwner});
 
     io.emit(`${requestedBy}:access granted`,{projectName:projectData.name});
+  });
+
+  socket.on("webrtc:join-call", ({ roomId, userId, userName }) => {
+    const MAX_PARTICIPANTS = parseInt(process.env.ROOM_MAX_PARTICIPANTS || "6", 10);
+    
+    if (!roomParticipants.has(roomId)) {
+      roomParticipants.set(roomId, new Map());
+    }
+    const participants = roomParticipants.get(roomId);
+    
+    if (participants.size >= MAX_PARTICIPANTS) {
+      socket.emit("webrtc:call-full");
+      return;
+    }
+    
+    participants.set(socket.id, { userId, userName });
+    socket.join(roomId);
+    
+    // Get all OTHER users
+    const others = [];
+    participants.forEach((user, pSocketId) => {
+      if (pSocketId !== socket.id) {
+        others.push({ socketId: pSocketId, ...user });
+      }
+    });
+    
+    socket.emit("webrtc:all-call-participants", others);
+    socket.to(roomId).emit("webrtc:user-joined-call", {
+      socketId: socket.id,
+      userId,
+      userName
+    });
+  });
+
+  socket.on("webrtc:offer", ({ targetSocketId, offer, senderSocketId, senderUserName }) => {
+    io.to(targetSocketId).emit("webrtc:offer", {
+      senderSocketId,
+      offer,
+      senderUserName
+    });
+  });
+
+  socket.on("webrtc:answer", ({ targetSocketId, answer }) => {
+    io.to(targetSocketId).emit("webrtc:answer", {
+      senderSocketId: socket.id,
+      answer
+    });
+  });
+
+  socket.on("webrtc:ice-candidate", ({ targetSocketId, candidate }) => {
+    io.to(targetSocketId).emit("webrtc:ice-candidate", {
+      senderSocketId: socket.id,
+      candidate
+    });
+  });
+
+  socket.on("webrtc:media-state", ({ roomId, isMuted, isCameraOff }) => {
+    socket.to(roomId).emit("webrtc:media-state", {
+      socketId: socket.id,
+      isMuted,
+      isCameraOff
+    });
+  });
+
+  const handleLeaveCall = (roomId) => {
+    if (!roomId) return;
+    const participants = roomParticipants.get(roomId);
+    if (participants && participants.has(socket.id)) {
+      participants.delete(socket.id);
+      socket.to(roomId).emit("webrtc:user-left-call", { socketId: socket.id });
+      socket.leave(roomId);
+      if (participants.size === 0) {
+        roomParticipants.delete(roomId);
+      }
+    }
+  };
+
+  socket.on("webrtc:leave-call", ({ roomId }) => {
+    handleLeaveCall(roomId);
+  });
+
+  socket.on("disconnect", () => {
+    // Find rooms this socket was in
+    for (const [roomId, participants] of roomParticipants.entries()) {
+      if (participants.has(socket.id)) {
+        handleLeaveCall(roomId);
+      }
+    }
   });
 
 });
