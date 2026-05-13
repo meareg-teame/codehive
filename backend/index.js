@@ -10,6 +10,7 @@ import connectMongodb from "./config/db.js";
 import cookieParser from "cookie-parser";
 import Project from "./models/Project.js";
 import Account from "./models/Account.js";
+import Session from "./models/Session.js";
 import { stat } from "fs";
 
 dotenv.config();
@@ -57,6 +58,11 @@ server.listen(8080, () => {
 //socket io part gulo
 
 const roomParticipants = new Map();
+const sessionStates = new Map(); // roomId -> { state, dbId }
+
+const emitRoomState = (roomId, newState) => {
+  io.to(roomId).emit("room:state-change", { roomId, newState });
+};
 
 io.on("connection", (socket) => {
   socket.on("request access", async (data) => {
@@ -109,6 +115,97 @@ io.on("connection", (socket) => {
 
     io.emit(`${requestedBy}:access granted`,{projectName:projectData.name});
   });
+
+  socket.on("room:join", async ({ roomId, userId }) => {
+    socket.join(roomId);
+
+    let sessionMeta = sessionStates.get(roomId);
+    if (!sessionMeta) {
+      // Find or create session
+      let session = await Session.findOne({ roomCode: roomId, state: { $ne: "Terminated" } });
+      if (!session) {
+        session = new Session({
+          roomCode: roomId,
+          state: "Initialized",
+          startedAt: new Date(),
+          participants: []
+        });
+        await session.save();
+      }
+      sessionMeta = { state: session.state, dbId: session._id, participants: new Set() };
+      sessionStates.set(roomId, sessionMeta);
+    }
+
+    sessionMeta.participants.add(socket.id);
+    
+    // Track participant joined
+    await Session.updateOne(
+      { _id: sessionMeta.dbId },
+      { $push: { participants: { userId, joinedAt: new Date() } } }
+    );
+
+    const prevCount = sessionMeta.participants.size - 1; // before this user
+    
+    if (prevCount === 0) {
+      sessionMeta.state = "Waiting";
+      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Waiting" });
+      emitRoomState(roomId, "Waiting");
+    } else if (prevCount === 1) {
+      sessionMeta.state = "Active";
+      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Active" });
+      emitRoomState(roomId, "Active");
+    } else if (prevCount > 1) {
+      sessionMeta.state = "Synchronizing";
+      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Synchronizing" });
+      emitRoomState(roomId, "Synchronizing");
+      io.to(roomId).emit("room:sync-start", { roomId });
+    }
+  });
+
+  socket.on("room:sync-confirm", async ({ roomId }) => {
+    let sessionMeta = sessionStates.get(roomId);
+    if (sessionMeta && sessionMeta.state === "Synchronizing") {
+      sessionMeta.state = "Active";
+      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Active" });
+      io.to(roomId).emit("room:sync-complete", { roomId });
+      emitRoomState(roomId, "Active");
+    }
+  });
+
+  socket.on("code_change", async ({ roomId, linesDelta }) => {
+    const sessionMeta = sessionStates.get(roomId);
+    if (sessionMeta) {
+      await Session.updateOne({ _id: sessionMeta.dbId }, { $inc: { linesWritten: linesDelta } });
+    }
+  });
+
+  socket.on("code_execute", async ({ roomId }) => {
+    const sessionMeta = sessionStates.get(roomId);
+    if (sessionMeta) {
+      await Session.updateOne({ _id: sessionMeta.dbId }, { $inc: { executionsRun: 1 } });
+    }
+  });
+
+  const handleRoomLeave = async (socketId) => {
+    for (const [roomId, sessionMeta] of sessionStates.entries()) {
+      if (sessionMeta.participants.has(socketId)) {
+        sessionMeta.participants.delete(socketId);
+        
+        await Session.updateOne(
+          { _id: sessionMeta.dbId, "participants.userId": { $exists: true } },
+          { $set: { "participants.$[elem].leftAt": new Date() } },
+          { arrayFilters: [{ "elem.leftAt": { $exists: false } }] }
+        );
+
+        if (sessionMeta.participants.size === 0) {
+          sessionMeta.state = "Terminated";
+          await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Terminated", endedAt: new Date() });
+          sessionStates.delete(roomId);
+          emitRoomState(roomId, "Terminated");
+        }
+      }
+    }
+  };
 
   socket.on("webrtc:join-call", ({ roomId, userId, userName }) => {
     const MAX_PARTICIPANTS = parseInt(process.env.ROOM_MAX_PARTICIPANTS || "6", 10);
@@ -189,13 +286,16 @@ io.on("connection", (socket) => {
     handleLeaveCall(roomId);
   });
 
-  socket.on("disconnect", () => {
-    // Find rooms this socket was in
+  socket.on("disconnect", async () => {
+    // Find rooms this socket was in for webrtc
     for (const [roomId, participants] of roomParticipants.entries()) {
       if (participants.has(socket.id)) {
         handleLeaveCall(roomId);
       }
     }
+    
+    // Handle room session state
+    await handleRoomLeave(socket.id);
   });
 
 });

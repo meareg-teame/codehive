@@ -53,6 +53,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { VideoConferencePanel } from "./video/VideoConferencePanel";
+import { usePresence } from "../hooks/usePresence";
 
 function cleanError(stderr) {
   const firstLine = stderr
@@ -103,6 +104,9 @@ function Editor() {
   const [requestedProjectId, setRequestedProjectId] = useState("");
   const [user, setUser] = useState("");
   const [aiExplaination, setAiExplaination] = useState("");
+  const [roomState, setRoomState] = useState("Initialized");
+  const [yjsInstances, setYjsInstances] = useState(null);
+  const { onlineUsers } = usePresence(yjsInstances?.provider, yjsInstances?.editor, user, yjsInstances?.ydoc);
 
   useEffect(() => {
     axios
@@ -154,10 +158,28 @@ function Editor() {
       });
     });
 
+    socket.on("room:state-change", (data) => {
+      setRoomState(data.newState);
+    });
+
+    socket.on("room:sync-start", () => {
+      setRoomState("Synchronizing");
+      // Simulate sync confirm after a short delay since y-websocket handles actual sync
+      setTimeout(() => {
+        socket.emit("room:sync-confirm", { roomId: projectId });
+      }, 500);
+    });
+
     // return () => {
     //   socket.disconnect();
     // };
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, projectId]);
+
+  useEffect(() => {
+    if (socketConnection && projectId && user) {
+      socketConnection.emit("room:join", { roomId: projectId, userId: user });
+    }
+  }, [socketConnection, projectId, user]);
 
   const accessDeniedPageRef = useRef(null);
 
@@ -741,6 +763,9 @@ function Editor() {
                       onClick={async () => {
                         const code = editorRef.current.getValue();
                         setIsCodeRunning(true);
+                        if (socketRef.current) {
+                           socketRef.current.emit("code_execute", { roomId: projectId });
+                        }
                         try {
                           const response = await axios.post(
                             BACKEND_URL + "/project/run-code",
@@ -857,11 +882,17 @@ function Editor() {
                         });
                         editor.setValue(editorValue);
                         editorRef.current = editor;
+                        setYjsInstances({ provider, ydoc, editor });
 
                         editor.onKeyUp(async (e) => {
                           const code = editor.getValue();
                           const fileName = selectedFileRef.current;
                           try {
+                            // Emit code change to backend to track linesWritten
+                            if (socketRef.current) {
+                               socketRef.current.emit("code_change", { roomId: projectId, linesDelta: 1 }); // Approx 1 change event
+                            }
+
                             const res = await axios.post(
                               BACKEND_URL + "/project/save-file",
                               {
@@ -884,6 +915,24 @@ function Editor() {
                       }}
                     />
                   }
+                  <div className="h-[24px] bg-gray-800 flex items-center px-4 text-xs text-gray-300 gap-4 border-t border-gray-700 w-full shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#E27311]"></span>
+                      <span className="capitalize">{languageName[projectDetails.language] || "Text"}</span>
+                    </div>
+                    <span className="text-gray-500">|</span>
+                    <div className="flex items-center gap-1">
+                      <span>👥 {onlineUsers} online</span>
+                    </div>
+                    <span className="text-gray-500">|</span>
+                    <div className="flex items-center gap-2">
+                      {(roomState === "Active" || roomState === "Waiting") ? (
+                        <><span className="w-2 h-2 rounded-full bg-green-500"></span> Synced</>
+                      ) : (
+                        <><span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Syncing...</>
+                      )}
+                    </div>
+                  </div>
                 </ResizablePanel>
 
                 <ResizableHandle className="bg-[#1C1D24]" />
