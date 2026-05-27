@@ -1,7 +1,8 @@
 // backend/yjs-server.js
 import { WebSocketServer } from "ws";
 import * as Y from "yjs";
-import { awarenessProtocol, syncProtocol } from "y-protocols";
+import * as awarenessProtocol from "y-protocols/awareness.js";
+import * as syncProtocol from "y-protocols/sync.js";
 import { URL } from "url";
 
 // Map from room name to a Y.Doc
