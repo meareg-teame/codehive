@@ -89,6 +89,8 @@ To confirm the worker is actually running, also test the async path:
 
 - Submit with `wait=false` and poll `/submissions/<token>` until it leaves `In Queue`.
 
-If `/workers` still returns `[]`, the worker service is not running or not connected to Redis.
+About `/workers`:
 
-If `/workers` returns `available: 0` with `size > 0`, the worker is down (crashed) or scaled-to-zero.
+- `/workers` only lists queues that exist in Redis (it iterates `Resque.queues`), so it can return `[]` if you’ve never created an async submission yet.
+- After you submit at least one `wait=false` job, `/workers` should include the queue and show `available >= 1` while the worker is healthy.
+- If `/workers` shows `available: 0` with `size > 0`, the worker is down (crashed) or scaled-to-zero.
