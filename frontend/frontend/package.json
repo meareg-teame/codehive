@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "tailwindcss-animate": "^1.0.7"
+  }
+}
