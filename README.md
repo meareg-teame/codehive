@@ -34,14 +34,14 @@ CodeCollab/
 ├── backend/            # Node.js + Express
 │   ├── routes/         # API routes
 │   ├── middleware/     # Auth & role middleware
-│   ├── models/         # MongoDB schemas
+│   ├── models/         # Sequelize models (Postgres)
 │   └── controllers/    # Route handlers
 └── yjs-server/         # Yjs WebSocket server
 ```
 
 ### Tech Stack
 - **Frontend**: React 19, Vite, Tailwind CSS, ShadCN UI, Monaco Editor
-- **Backend**: Node.js, Express, Socket.IO, MongoDB
+- **Backend**: Node.js, Express, Socket.IO, Postgres (Sequelize)
 - **Real-time**: Yjs (CRDT), WebRTC (Simple-Peer)
 - **Auth**: Firebase Auth + JWT
 - **Charts**: Recharts
@@ -70,7 +70,7 @@ JUDGE0_URL=http://localhost:2358
 
 ### Prerequisites
 - Node.js 18+ and npm
-- MongoDB (local or cloud)
+- Postgres (local or cloud) via `DATABASE_URL`
 - Git
 
 ### Installation
@@ -93,7 +93,7 @@ Create `.env` files:
 
 **Backend** (`backend/.env`):
 ```env
-MONGODB_URI=mongodb://localhost:27017/codecollab
+DATABASE_URL=postgres://user:password@localhost:5432/codehive
 JWT_SECRET=your-super-secret-jwt-key
 FRONTEND_URL=http://localhost:5173
 YWS_URL=ws://localhost:10000
@@ -108,11 +108,9 @@ VITE_YWS_URL=ws://localhost:10000
 VITE_APP_ENV=development
 ```
 
-4. **Start MongoDB** (if running locally)
-```bash
-mkdir -p data
-mongod --dbpath ./data
-```
+4. **Set up Postgres**
+
+Make sure `DATABASE_URL` points to a reachable Postgres instance. (For Railway, the Postgres plugin provides `DATABASE_URL` automatically.)
 
 5. **Start the application**
 
@@ -155,7 +153,7 @@ Once all services are running:
 CodeCollab/
 ├── backend/
 │   ├── config/
-│   │   └── db.js              # MongoDB connection
+│   │   └── db.js              # Postgres connection (Sequelize)
 │   ├── middleware/
 │   │   ├── authenticateToken.js # JWT auth middleware
 │   │   └── requireRole.js     # RBAC middleware
@@ -203,7 +201,8 @@ CodeCollab/
 #### Backend (.env)
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/codecollab` |
+| `DATABASE_URL` | Postgres connection string | Required |
+| `DATABASE_SSL` | Force SSL on/off (`true`/`false`) | `true` in production |
 | `JWT_SECRET` | Secret key for JWT signing | Required |
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
 | `YWS_URL` | Yjs WebSocket URL | `ws://localhost:10000` |
@@ -248,19 +247,23 @@ A Docker setup can be added for easier deployment:
 # docker-compose.yml (example)
 version: '3.8'
 services:
-  mongodb:
-    image: mongo:latest
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=codehive
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     ports:
-      - "27017:27017"
+      - "5432:5432"
   
   backend:
     build: ./backend
     ports:
       - "8080:8080"
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/codecollab
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/codehive
     depends_on:
-      - mongodb
+      - postgres
   
   frontend:
     build: ./frontend

@@ -1,14 +1,21 @@
 import { Sequelize } from "sequelize";
 
+const isProduction = process.env.NODE_ENV === "production";
+const shouldUseSSL =
+  process.env.DATABASE_SSL === "true" ||
+  (process.env.DATABASE_SSL !== "false" && isProduction);
+
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: 'postgres',
-  protocol: 'postgres',
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false
-    }
-  }
+  dialect: "postgres",
+  protocol: "postgres",
+  dialectOptions: shouldUseSSL
+    ? {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      }
+    : {},
 });
 
 const connectPostgres = async ({ sync } = {}) => {
@@ -16,10 +23,13 @@ const connectPostgres = async ({ sync } = {}) => {
     await sequelize.authenticate();
     console.log('PostgreSQL connection has been established successfully.');
 
+    const envSync = process.env.SEQUELIZE_SYNC;
     const shouldSync =
-      typeof sync === 'boolean'
+      typeof sync === "boolean"
         ? sync
-        : process.env.NODE_ENV !== 'production' && process.env.SEQUELIZE_SYNC !== 'false';
+        : typeof envSync === "string"
+          ? envSync !== "false"
+          : process.env.NODE_ENV !== "production";
 
     if (shouldSync) {
       await sequelize.sync();

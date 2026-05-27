@@ -78,7 +78,7 @@ app.get("/health",(req,res)=>{
   res.status(200).json({msg:"200 OK"});
 });
 
-const PORT = process.env.PORT || 8081;
+const PORT = process.env.PORT || 8080;
 
 server.listen(PORT, () => {
   console.log(`server live on port ${PORT}`);

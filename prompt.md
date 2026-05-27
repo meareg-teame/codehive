@@ -297,7 +297,7 @@ Display (left to right):
 ### 2.4 — Room Session State Machine (Server)
 
 Add session state tracking to the server. For each room, maintain a state field
-in MongoDB's Session collection. Valid states:
+in the Postgres `sessions` table (via Sequelize). Valid states:
 
 ```
 Initialized → Waiting → Active → Synchronizing → Terminated
@@ -310,7 +310,7 @@ Transitions:
 - New user joins existing active session (re-sync needed): `Synchronizing`
   → Emit `room:sync-start` → after sync confirmation → back to `Active`
   → Emit `room:sync-complete`
-- All users leave: `Terminated` → save session to MongoDB with `endedAt`
+- All users leave: `Terminated` → persist session with `endedAt`
 
 Emit `room:state-change` with `{ roomId, newState }` whenever state changes.
 The client's status bar listens for this and shows the sync state accordingly.
@@ -319,9 +319,9 @@ The client's status bar listens for this and shows the sync state accordingly.
 
 ## PHASE 3: Persistent Storage + Authentication + RBAC
 
-### 3.1 — MongoDB Schema
+### 3.1 — Postgres Schema (Sequelize)
 
-Define Mongoose models if not already using Mongoose. Create/extend these models:
+Define Sequelize models/migrations (or extend existing Sequelize models). Create/extend these entities:
 
 **User model:**
 ```js
@@ -386,7 +386,7 @@ After a user completes Firebase Google OAuth, the client sends the Firebase
 
 The server:
 1. Verifies the Firebase ID token using Firebase Admin SDK
-2. Finds or creates the User document in MongoDB using `firebaseUID`
+2. Finds or creates the User row in Postgres using `firebaseUID`
 3. Signs a new JWT using `jsonwebtoken` with payload:
    `{ userId: user._id, email: user.email, role: user.role }`
 4. Returns the JWT to the client
@@ -580,7 +580,7 @@ that phase:
 
 3. **Environment variables required:**
    ```
-   MONGODB_URI=
+  DATABASE_URL=
    JWT_SECRET=
    FIREBASE_PROJECT_ID=
    FIREBASE_CLIENT_EMAIL=

@@ -11,22 +11,19 @@ Simply run:
 ```
 
 This will:
-1. ✅ Check all prerequisites (Node.js, MongoDB)
+1. ✅ Check all prerequisites (Node.js)
 2. ✅ Install dependencies if needed
-3. ✅ Start MongoDB (if not running)
-4. ✅ Start the backend server (port 8080)
-5. ✅ Start the Yjs WebSocket server (port 10000)
-6. ✅ Start the frontend dev server (port 5173)
+3. ✅ Start the backend server (port 8080)
+4. ✅ Start the Yjs WebSocket server (port 10000)
+5. ✅ Start the frontend dev server (port 5173)
 
 Then open your browser to: **http://localhost:5173**
 
 ## 📋 Manual Steps (if quick-start doesn't work)
 
-### 1. Start MongoDB
-```bash
-mkdir -p data
-mongod --dbpath ./data
-```
+### 1. Configure Postgres
+
+Set `DATABASE_URL` in `backend/.env` to a reachable Postgres instance.
 
 ### 2. Start Backend
 ```bash
@@ -61,15 +58,8 @@ lsof -ti:5173 | xargs kill -9
 lsof -ti:10000 | xargs kill -9
 ```
 
-### "MongoDB connection failed"
-Make sure MongoDB is running:
-```bash
-# Check if MongoDB is running
-pgrep mongod
-
-# Start MongoDB if not running
-mkdir -p data && mongod --dbpath ./data
-```
+### "Database connection failed"
+Make sure `DATABASE_URL` is correct. If you’re using local Postgres without SSL, set `DATABASE_SSL=false`.
 
 ### "Module not found" errors
 Reinstall dependencies:

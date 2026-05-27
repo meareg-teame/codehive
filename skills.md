@@ -46,7 +46,7 @@ submitted to Bahir Dar Institute of Technology, Faculty of Computing.
 - **JWT** (needs to be added as a layer on top of Firebase for RBAC)
 
 ### Database
-- **MongoDB** (already set up — extend schemas, do not replace)
+- **Postgres** (via Sequelize + `DATABASE_URL`) — use Railway Postgres in production
 
 ### NEW: Video Conferencing (To Be Built)
 - **simple-peer** OR **mediasoup** for WebRTC
@@ -123,13 +123,13 @@ Yjs already tracks cursor positions. Surface them visually.
 ```
 Initialized → Waiting → Active → Synchronizing → Terminated
 ```
-Track this per room in MongoDB. Emit `room:state-change` events via Socket.IO.
+Track this per room in Postgres (Session table). Emit `room:state-change` events via Socket.IO.
 
 ---
 
 ### PHASE 3 — Persistent Storage + RBAC
 
-**MongoDB Schema additions:**
+**Postgres schema additions (Sequelize models):**
 ```
 User       { _id, firebaseUID, email, displayName, role, createdAt }
 Project    { _id, name, ownerId, members[], language, createdAt, updatedAt }
@@ -195,8 +195,8 @@ Use **Recharts** for all charts (already a common React chart library).
 4. **Every new UI component uses ShadCN + Tailwind.** No plain CSS files for
    new components. Match the existing visual style of the project.
 
-5. **MongoDB only.** Do not introduce Redis, SQL, or any other database.
-   Use MongoDB for session state too (not in-memory only).
+5. **Postgres only.** Do not introduce MongoDB/Redis/other databases.
+  Use Postgres for session state too (not in-memory only).
 
 6. **Environment variables** go in `.env` and are referenced via `process.env`.
    Never hardcode secrets, API keys, or Firebase config in source files.
@@ -306,7 +306,7 @@ These must be demonstrably working for the final year presentation:
 - Do NOT rewrite the backend in Python/FastAPI. The RAD mentions FastAPI but
   the existing project is Node.js. Keep Node.js.
 - Do NOT replace Yjs with manual OT (Operational Transformation). Yjs is better.
-- Do NOT use `localStorage` for session state. Use MongoDB + in-memory Socket.IO rooms.
+- Do NOT use `localStorage` for session state. Use Postgres + in-memory Socket.IO rooms.
 - Do NOT install heavy SFU servers (mediasoup, Janus) for ≤6 users. Use simple-peer.
 - Do NOT add a separate chat microservice. Chat can be a Socket.IO channel.
 - Do NOT skip error boundaries in React. Wrap all new panels in `<ErrorBoundary>`.

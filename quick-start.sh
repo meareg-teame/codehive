@@ -66,46 +66,9 @@ else
     exit 1
 fi
 
-# Check MongoDB
-if command_exists mongod; then
-    MONGO_VERSION=$(mongod --version | grep "db version" | head -1)
-    print_success "MongoDB found ($MONGO_VERSION)"
-else
-    print_warning "MongoDB not found. Please install MongoDB:"
-    echo "  Ubuntu/Debian: sudo apt-get install mongodb"
-    echo "  macOS: brew install mongodb-community"
-    echo "  Windows: https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/"
-    exit 1
-fi
-
-echo ""
-
-# ============================================
-# SETUP MONGODB
-# ============================================
-
-echo "📦 Checking MongoDB..."
-
-# Check if MongoDB is already running
-if pgrep -x "mongod" > /dev/null; then
-    print_success "MongoDB is already running"
-else
-    print_status "Starting MongoDB..."
-    
-    # Create data directory if it doesn't exist
-    mkdir -p "$SCRIPT_DIR/data"
-    
-    # Start MongoDB
-    mongod --dbpath "$SCRIPT_DIR/data" --fork --logpath "$SCRIPT_DIR/data/mongod.log" --quiet
-    
-    if [ $? -eq 0 ]; then
-        print_success "MongoDB started successfully"
-        sleep 2  # Give MongoDB time to fully start
-    else
-        print_error "Failed to start MongoDB. Check the log: $SCRIPT_DIR/data/mongod.log"
-        exit 1
-    fi
-fi
+print_warning "Database is not auto-started by this script."
+echo "   CodeHive backend expects Postgres via DATABASE_URL."
+echo "   For local dev, set DATABASE_URL in backend/.env (or use a hosted Postgres)."
 
 echo ""
 
@@ -153,8 +116,9 @@ echo "🔧 Checking environment files..."
 if [ ! -f "$SCRIPT_DIR/backend/.env" ]; then
     print_warning "Backend .env not found. Creating from default..."
     cat > "$SCRIPT_DIR/backend/.env" << EOF
-# MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017/codecollab
+# Postgres configuration (required)
+# Example (local): DATABASE_URL=postgres://postgres:postgres@localhost:5432/codehive
+DATABASE_URL=
 
 # JWT Secret (change this to a secure random string in production)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -162,7 +126,10 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:5173
 
-# Yjs WebSocket URL
+# Judge0 (optional for code execution)
+JUDGE0_URL=http://localhost:2358
+
+# Yjs WebSocket URL (frontend uses VITE_YWS_URL)
 YWS_URL=ws://localhost:10000
 
 # Room Configuration
@@ -170,6 +137,9 @@ ROOM_MAX_PARTICIPANTS=6
 
 # Node Environment
 NODE_ENV=development
+
+# Set to false if you don't want Sequelize auto-sync in dev
+SEQUELIZE_SYNC=true
 EOF
     print_success "Created backend/.env"
 else

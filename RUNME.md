@@ -17,7 +17,7 @@ Then open http://localhost:5173 in your browser! 🎉
 ## 📋 Prerequisites
 
 - **Node.js 18+** and **npm**
-- **MongoDB** (local or Atlas)
+- **Postgres** (local or cloud) via `DATABASE_URL`
 - **Git**
 
 ### Check Prerequisites
@@ -25,7 +25,7 @@ Then open http://localhost:5173 in your browser! 🎉
 ```bash
 node --version    # Should be v18+
 npm --version     # Should be 8+
-mongod --version  # MongoDB
+psql --version    # Postgres client (optional)
 ```
 
 ---
@@ -41,7 +41,7 @@ npm run install:all
 
 This will install:
 - Root dependencies (concurrently)
-- Backend dependencies (Express, Socket.IO, MongoDB, etc.)
+- Backend dependencies (Express, Socket.IO, Postgres/Sequelize, etc.)
 - Frontend dependencies (React, Vite, Tailwind, etc.)
 - Yjs server dependencies
 
@@ -51,7 +51,7 @@ The environment files are already created with default values:
 
 **Backend** (`backend/.env`):
 ```env
-MONGODB_URI=mongodb://localhost:27017/codecollab
+DATABASE_URL=postgres://user:password@localhost:5432/codehive
 JWT_SECRET=your-super-secret-jwt-key
 FRONTEND_URL=http://localhost:5173
 YWS_URL=ws://localhost:10000
@@ -66,24 +66,9 @@ VITE_YWS_URL=ws://localhost:10000
 VITE_APP_ENV=development
 ```
 
-### Step 3: Start MongoDB
+### Step 3: Set up Postgres
 
-If MongoDB is not running, start it:
-
-```bash
-# Create data directory if it doesn't exist
-mkdir -p data
-
-# Start MongoDB
-mongod --dbpath ./data
-```
-
-Or if you have MongoDB installed as a service:
-
-```bash
-sudo systemctl start mongod  # Linux
-brew services start mongodb-community  # macOS
-```
+Set `DATABASE_URL` in `backend/.env` to a reachable Postgres instance. (On Railway, adding the Postgres plugin provides `DATABASE_URL` automatically.)
 
 ---
 
@@ -104,22 +89,17 @@ This will start:
 
 Open 4 separate terminals:
 
-**Terminal 1 - MongoDB** (if not running as service):
-```bash
-mongod --dbpath ./data
-```
-
-**Terminal 2 - Backend**:
+**Terminal 1 - Backend**:
 ```bash
 npm run dev:backend
 ```
 
-**Terminal 3 - Yjs Server**:
+**Terminal 2 - Yjs Server**:
 ```bash
 npm run dev:yjs
 ```
 
-**Terminal 4 - Frontend**:
+**Terminal 3 - Frontend**:
 ```bash
 npm run dev:frontend
 ```
@@ -141,21 +121,9 @@ Once all services are running:
 
 ## 🛠️ Troubleshooting
 
-### MongoDB Connection Issues
+### Database Connection Issues
 
-**Error**: `MongoNetworkError: failed to connect to server`
-
-**Solution**:
-```bash
-# Check if MongoDB is running
-pgrep mongod
-
-# Start MongoDB if not running
-mongod --dbpath ./data
-
-# Or start as service
-sudo systemctl start mongod
-```
+If the backend prints `Unable to connect to the database`, verify `DATABASE_URL` and whether SSL is required (`DATABASE_SSL=true/false`).
 
 ### Port Already in Use
 

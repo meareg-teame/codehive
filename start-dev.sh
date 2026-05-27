@@ -12,15 +12,12 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if MongoDB is running
-if pgrep -x "mongod" > /dev/null
-then
-    echo -e "${GREEN}✓${NC} MongoDB is running"
+if [ -f "./backend/.env" ] && grep -qE '^DATABASE_URL=.+' "./backend/.env"; then
+    echo -e "${GREEN}✓${NC} DATABASE_URL is set in backend/.env"
 else
-    echo -e "${YELLOW}⚠${NC}  MongoDB is not running. Please start MongoDB first:"
-    echo "   sudo systemctl start mongod"
-    echo "   or"
-    echo "   mongod --dbpath /path/to/data"
+    echo -e "${YELLOW}⚠${NC}  DATABASE_URL is not set (backend/.env)."
+    echo "   Backend expects Postgres via DATABASE_URL."
+    echo "   For local dev without SSL: set DATABASE_SSL=false."
     echo ""
 fi
 

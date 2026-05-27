@@ -44,8 +44,8 @@ I've fixed the backend startup issues by resolving the port conflict and the dat
 
 **Summary of Changes**
 
-- **Fixed Port Conflict**: Changed the hardcoded port `8080` in [index.js](file:///home/meareg/code-collab/CodeHive/backend/index.js) to `process.env.PORT || 8081`. This allows the server to start even if port `8080` is occupied by another process.
-- **Fixed DB Connection**: Corrected the environment variable name in [db.js](file:///home/meareg/code-collab/CodeHive/backend/config/db.js) from `MONGO_URI` to `MONGODB_URI` to match the configuration in [backend/.env](file:///home/meareg/code-collab/CodeHive/backend/.env).
+- **Fixed Port Conflict**: Use `process.env.PORT` on hosts like Railway; locally default to 8080.
+- **Fixed DB Connection**: Backend uses Postgres via `DATABASE_URL` (Sequelize). Ensure `DATABASE_URL` is set and reachable.
 
 **Verification Results**
 
@@ -58,7 +58,7 @@ DB connected
 **Educational Insights**
 
 - **Port Management**: Hardcoding ports like `8080` can lead to `EADDRINUSE` errors if the environment or other services are already using that port. Using `process.env.PORT || 8081` is a best practice as it allows for flexibility across different environments.
-- **Environment Consistency**: Inconsistent naming of secrets (like `MONGODB_URI` vs `MONGO_URI`) is a common source of "silent" failures where the application starts but cannot communicate with external services. Always verify that your `process.env` calls match the keys defined in your `.env` file.<mccoremem id="03g4ei3t1nnrtadrchjrcrs25" />
+- **Environment Consistency**: Inconsistent naming of secrets (like `DATABASE_URL` vs `DB_URL`) is a common source of "silent" failures where the application starts but cannot communicate with external services. Always verify that your `process.env` calls match the keys defined in your `.env` file.
 
 ## User
 CodeHive main  ? ❯ 
