@@ -4,9 +4,10 @@ FROM judge0/judge0:1.13.1
 # Judge0's default sandbox relies on isolate/mount namespaces; for PaaS we
 # replace isolate with a safe mock that runs without kernel sandbox features.
 #
-# NOTE: We copy from judge0/mock_isolate.sh so this Dockerfile works whether
-# Railway sets the build context to repo root or to the judge0/ folder.
-COPY judge0/mock_isolate.sh /usr/local/bin/isolate
+# Copy from `mock_isolate.sh` so this works whether the build context is the
+# repo root (uses ./mock_isolate.sh) or the judge0/ folder (uses ./mock_isolate.sh
+# inside that folder).
+COPY mock_isolate.sh /usr/local/bin/isolate
 RUN chmod +x /usr/local/bin/isolate
 
 # Make sure the default working directory used by some runners exists.
