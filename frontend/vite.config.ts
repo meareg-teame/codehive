@@ -8,7 +8,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 export default defineConfig({
   plugins: [
     react(), 
-    tailwindcss(),
+    tailwindcss({ config: './tailwind.config.cjs' }),
     nodePolyfills({
       include: ['events', 'util', 'buffer', 'process'],
       globals: {
