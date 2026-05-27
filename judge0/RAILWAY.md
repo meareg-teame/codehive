@@ -32,6 +32,11 @@ Create **two Railway services** from this repo:
 - Start command: `./scripts/workers`
 - No port exposure needed
 
+Important for the worker on Railway:
+
+- Ensure the worker service is **not** running in a mode that scales to zero when idle (e.g. Railway **Serverless**). A worker that scales to zero will never receive HTTP traffic to “wake up”, so queued `wait=false` jobs will sit `In Queue` forever.
+- Set a low `COUNT` (see below). Judge0 defaults to `COUNT=(nproc*2)`, which commonly OOM-kills small containers.
+
 Also create:
 
 3) **Postgres** (Railway Postgres plugin)
@@ -64,6 +69,11 @@ Optional hardening (recommended):
 - `ENABLE_COMMAND_LINE_ARGUMENTS=false`
 - `ENABLE_CALLBACKS=false`
 
+Worker stability (recommended):
+
+- On the worker service set `COUNT=1` (or `2`) to avoid OOM-kills.
+- If you still see the worker crash, also try setting `RAILS_MAX_THREADS=4` on the worker.
+
 ## Validate
 From this repo root, run:
 
@@ -80,3 +90,5 @@ To confirm the worker is actually running, also test the async path:
 - Submit with `wait=false` and poll `/submissions/<token>` until it leaves `In Queue`.
 
 If `/workers` still returns `[]`, the worker service is not running or not connected to Redis.
+
+If `/workers` returns `available: 0` with `size > 0`, the worker is down (crashed) or scaled-to-zero.
