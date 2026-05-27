@@ -9,12 +9,15 @@ That typically means Judge0 is running without the sandbox prerequisites (the of
 ## Recommended fix (works on unprivileged PaaS)
 
 Deploy a custom Judge0 image that replaces `isolate` with `mock_isolate.sh`.
-This repo includes a Dockerfile for that:
+This repo includes Dockerfiles for that:
 
-- `judge0/Dockerfile`
+- `Dockerfile` (recommended)
+- `judge0/Dockerfile` (alternative)
 
 ### Railway build settings (important)
 In each Railway service settings:
+
+- Recommended: set **Dockerfile Path** to `Dockerfile`.
 
 - If **Root Directory** is the repo root, set **Dockerfile Path** to `judge0/Dockerfile`.
 - If **Root Directory** is `judge0/`, set **Dockerfile Path** to `Dockerfile`.
