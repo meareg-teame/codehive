@@ -21,8 +21,13 @@ EXPOSE 8080
 # Ensure Rails binds to the expected port even if the platform doesn't inject PORT.
 ENV PORT=8080
 
-# Make sure the default working directory used by some runners exists.
-RUN mkdir -p /box && chmod 777 /box
+# Avoid accidentally running in development on PaaS.
+ENV RAILS_ENV=production
+ENV RAILS_LOG_TO_STDOUT=true
+
+# Make sure common runtime paths exist and are writable.
+RUN mkdir -p /box /api/log \
+	&& chmod 777 /box /api/log
 
 # Switch back to the original runtime user from the base image.
 USER judge0
