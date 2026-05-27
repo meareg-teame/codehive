@@ -4,6 +4,8 @@ USER root
 
 WORKDIR /api
 
+COPY --chmod=0755 railway-env-shim.sh /usr/local/bin/railway-env-shim
+
 # Railway (and many PaaS) don't allow privileged containers.
 # Judge0's default sandbox relies on isolate/mount namespaces; for PaaS we
 # replace isolate with a safe mock that runs without kernel sandbox features.
@@ -21,3 +23,6 @@ RUN mkdir -p /box && chmod 777 /box
 
 # Switch back to the original runtime user from the base image.
 USER judge0
+
+# Wrap the upstream entrypoint to normalize Railway Redis env vars.
+ENTRYPOINT ["/usr/local/bin/railway-env-shim"]

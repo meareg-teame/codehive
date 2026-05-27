@@ -50,11 +50,13 @@ Set these on BOTH server and worker services:
 
 On Railway, the Redis plugin won’t affect Judge0 unless you map the plugin vars onto these names. For example:
 
-- `REDIS_HOST=${{ Redis.REDIS_HOST }}`
-- `REDIS_PORT=${{ Redis.REDIS_PORT }}`
-- `REDIS_PASSWORD=${{ Redis.REDIS_PASSWORD }}`
+- `REDIS_HOST=${{ Redis.REDISHOST }}`
+- `REDIS_PORT=${{ Redis.REDISPORT }}`
+- `REDIS_PASSWORD=${{ Redis.REDISPASSWORD }}`
 
-If `REDIS_HOST` is missing, Judge0 defaults to `localhost` and background jobs will sit forever as `In Queue`.
+Alternatively (simpler), set `REDIS_URL=${{ Redis.REDIS_URL }}`. This repo’s Judge0 Dockerfile includes a small startup shim that parses `REDIS_URL` and fills in `REDIS_HOST/REDIS_PORT/REDIS_PASSWORD` automatically.
+
+If `REDIS_HOST` is missing/blank, Judge0 defaults to `localhost` and `/workers` will return 500.
 
 Optional hardening (recommended):
 
