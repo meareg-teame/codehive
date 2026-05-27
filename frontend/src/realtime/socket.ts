@@ -8,7 +8,7 @@ export type SocketOptions = {
 
 export function createAppSocket(options: SocketOptions = {}): Socket {
   return io(BACKEND_URL, {
-    transports: ["polling", "websocket"],
+    transports: ["websocket", "polling"],  // websocket-first — Railway supports native WS
     withCredentials: true,
     reconnection: options.reconnection ?? true,
     timeout: options.timeout ?? 10000,
