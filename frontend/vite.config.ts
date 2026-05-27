@@ -1,23 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from "path"
-import tailwindcss from "@tailwindcss/vite"
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import tailwindcss from "tailwindcss"
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(), 
-    tailwindcss(),
-    nodePolyfills({
-      include: ['events', 'util', 'buffer', 'process'],
-      globals: {
-        Buffer: true,
-        global: true,
-        process: true,
-      },
-    }),
-  ],
+  plugins: [react(), nodePolyfills({
+    include: ['events', 'util', 'buffer', 'process'],
+    globals: {
+      Buffer: true,
+      global: true,
+      process: true,
+    },
+  })],
+  css: {
+    postcss: {
+      plugins: [tailwindcss()],
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
