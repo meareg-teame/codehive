@@ -109,17 +109,15 @@ function Dashboard() {
     }
   };
 
-  const checkProjectName = async (name: string) => {
+  const checkProjectName = (name: string) => {
     if (!name.trim()) {
       setIsProjectNameAvailable(true);
       return;
     }
-    try {
-      const response = await legacyProjects.checkProjectName(name);
-      setIsProjectNameAvailable(response.isAvailable);
-    } catch (error) {
-      console.log(error);
-    }
+    const exists = userProjects.some(
+      (p) => p.name.toLowerCase() === name.trim().toLowerCase()
+    );
+    setIsProjectNameAvailable(!exists);
   };
 
   useEffect(() => {
