@@ -2,7 +2,7 @@
   "name": "yjs-server",
   "private": true,
   "scripts": {
-    "start": "HOST=0.0.0.0 PORT=10000 node node_modules/y-websocket/bin/server.js"
+    "start": "HOST=0.0.0.0 PORT=${PORT:-10000} node node_modules/y-websocket/bin/server.js"
   },
   "dependencies": {
     "y-websocket": "1.5.4"
