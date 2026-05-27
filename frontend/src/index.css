@@ -27,10 +27,11 @@
   }
 
   * {
-    @apply border-border;
+    @apply border;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-family: 'Geist', sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
@@ -143,10 +144,12 @@ input:-webkit-autofill:focus {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border;
+    outline: 2px solid hsl(var(--ring));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
