@@ -24,7 +24,7 @@ Create **two Railway services** from this repo:
 
 1) **Judge0 API (server)**
 - Dockerfile path: `judge0/Dockerfile`
-- Expose port: `2358`
+- Expose port: `8080`
 - Start command: *(leave default)*
 
 2) **Judge0 worker**
