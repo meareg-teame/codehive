@@ -2,6 +2,8 @@
 import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
+import { WebSocketServer } from "ws";
+import { setupWSConnection } from "y-websocket/bin/utils.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
@@ -31,6 +33,17 @@ process.on("uncaughtException", (error) => {
 const app = express();
 
 const server = http.createServer(app);
+
+const wss = new WebSocketServer({ noServer: true });
+
+wss.on("connection", setupWSConnection);
+
+server.on("upgrade", (request, socket, head) => {
+  // This will switch the protocol from HTTP to WebSocket and hand over the connection to Yjs
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit("connection", ws, request);
+  });
+});
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
