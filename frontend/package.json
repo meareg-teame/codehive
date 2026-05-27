@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:ci": "node --max-old-space-size=4096 vite build",
+    "build:ci": "node --max-old-space-size=4096 ./node_modules/.bin/vite build",
     "lint": "eslint .",
     "preview": "vite preview --host 0.0.0.0 --port ${PORT:-4173}"
   },
@@ -41,6 +41,7 @@
     "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7",
     "timeago.js": "^4.0.2",
     "valid-filename": "^4.0.0",
     "vite-plugin-node-polyfills": "^0.26.0",
