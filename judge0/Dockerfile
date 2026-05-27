@@ -10,5 +10,7 @@ FROM judge0/judge0:1.13.1
 COPY mock_isolate.sh /usr/local/bin/isolate
 RUN chmod +x /usr/local/bin/isolate
 
+EXPOSE 2358
+
 # Make sure the default working directory used by some runners exists.
 RUN mkdir -p /box && chmod 777 /box
