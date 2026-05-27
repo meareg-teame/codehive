@@ -14,6 +14,9 @@ COPY --chmod=0755 judge0/mock_isolate.sh /usr/local/bin/isolate
 # Judge0 API listens on 8080 in this image.
 EXPOSE 8080
 
+# Ensure Rails binds to the expected port even if the platform doesn't inject PORT.
+ENV PORT=8080
+
 # Make sure the default working directory used by some runners exists.
 RUN mkdir -p /box && chmod 777 /box
 
