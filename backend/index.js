@@ -3,7 +3,7 @@ import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { WebSocketServer } from "ws";
-import { setupWSConnection } from "y-websocket/bin/utils.js";
+import { setupWSConnection, setPersistence } from "y-websocket/dist/y-websocket.cjs";
 import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
