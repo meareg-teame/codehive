@@ -37,20 +37,24 @@ createYjsServer(server);
 
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
-  if (origin === process.env.FRONTEND_URL) return true;
+
+  const cleanOrigin = origin.replace(/\/+$/, "");
+  const cleanFrontendUrl = (process.env.FRONTEND_URL || "").replace(/\/+$/, "");
+
+  if (cleanOrigin === cleanFrontendUrl) return true;
+  if (cleanOrigin === "https://codehive-gamma.vercel.app") return true;
 
   // Allow Vite/dev clients on localhost without hardcoding a single port.
-  return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+  return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(cleanOrigin);
 };
 
 const corsOptions = {
   origin(origin, callback) {
     if (isAllowedOrigin(origin)) {
       callback(null, true);
-      return;
+    } else {
+      callback(null, false);
     }
-
-    callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
