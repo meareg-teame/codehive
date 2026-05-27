@@ -1,137 +1,169 @@
 import HeroNavbar from "./HeroNavbar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Toaster } from "@/components/ui/sonner";
-import { Spinner } from "@/components/ui/spinner";
+import { Toaster, toast } from "sonner";
+import { Spinner } from "./ui/spinner";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Button } from "./ui/button";
+import { ShieldCheck, Zap } from "lucide-react";
+import { useAuth } from "@/app/providers/AuthProvider";
+import { getErrorMessage } from "@/api";
 
 function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, signup, guestLogin } = useAuth();
 
-  const enterApp = () => {
+  const redirectTo = (location.state as { from?: string } | null)?.from || "/dashboard";
+
+  const handleGuest = async () => {
     setIsLoading(true);
-    window.setTimeout(() => {
+    try {
+      await guestLogin();
+      navigate(redirectTo);
+    } catch {
+      toast.error("Handshake failed. Protocol unavailable.");
+    } finally {
       setIsLoading(false);
-      navigate("/dashboard");
-    }, 300);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email") || "");
+    const password = String(form.get("password") || "");
+    setIsLoading(true);
+    try {
+      await login(email, password);
+      toast.success("Authenticated");
+      navigate(redirectTo);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Login failed"));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = String(form.get("name") || "");
+    const email = String(form.get("email") || "");
+    const password = String(form.get("password") || "");
+    setIsLoading(true);
+    try {
+      const msg = await signup(name, email, password);
+      if (msg === "success") {
+        toast.success("Check your email to verify your account");
+      } else if (msg === "failure") {
+        toast.error("Please wait before requesting another verification email");
+      } else {
+        toast.info(msg);
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Signup failed"));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#0F0F10] flex flex-col bg-[url('../../grid.svg')]">
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
+      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 blur-[160px] rounded-full pointer-events-none" />
+      
       <HeroNavbar />
-      <Toaster
-        position="bottom-center"
-        toastOptions={{
-          style: {
-            background: "#0f0f10",
-            color: "white",
-            border: "3px solid #512FA2",
-          },
-        }}
-      />
+      <Toaster position="bottom-right" />
 
-      <div className=" flex flex-col items-center m-[5rem]">
-        <Tabs
-          defaultValue="account"
-          className="w-[400px] [@media(max-width:425px)]:w-[335px]"
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md space-y-8"
         >
-          <TabsList className="w-full bg-[#18191A] flex gap-2 h-[2.5rem] mb-[2rem]">
-            <TabsTrigger
-              value="account"
-              className="bg-[#18191A] text-white data-[state=active]:bg-[#0f0f10] cursor-pointer text-[1.1rem]"
-            >
-              Log in
-            </TabsTrigger>
-            <TabsTrigger
-              value="password"
-              className="bg-[#18191A] text-white data-[state=active]:bg-[#0F0F10] cursor-pointer text-[1.1rem]"
-            >
-              Create Account
-            </TabsTrigger>
-          </TabsList>
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-4">
+              <ShieldCheck className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Secure Gateway</span>
+            </div>
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter">Initialize <span className="text-primary">Session</span></h1>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Authentication protocol required</p>
+          </div>
 
-          <TabsContent value="account" className="text-white flex flex-col gap-2">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                enterApp();
-              }}
-            >
-              <label htmlFor="login-email">Email</label>
-              <Input
-                id="login-email"
-                placeholder="Email"
-                type="email"
-                className="border-2 border-[#262829] selection:bg-blue-800"
-              />
-              <label htmlFor="login-password">Password</label>
-              <Input
-                id="login-password"
-                placeholder="Password"
-                type="password"
-                className="border-2 border-[#262829] selection:bg-blue-800"
-              />
-              <button
-                className={`bg-[#512FA2] rounded-[0.5rem] py-2 font-semibold mt-3 cursor-pointer hover:bg-[#4a2a93] duration-300 flex items-center justify-center gap-2 ${
-                  isLoading ? "pointer-events-none bg-gray-600" : ""
-                }`}
-                type="submit"
-              >
-                {isLoading && <Spinner />}
-                <p>{isLoading ? "Please wait..." : "Log in"}</p>
-              </button>
-              <p className="text-gray-500 text-center mt-5">
-                Local demo mode: login is bypassed for now.
-              </p>
-            </form>
-          </TabsContent>
+          <div className="p-8 rounded-[2.5rem] bg-sidebar/20 border border-white/5 backdrop-blur-xl shadow-2xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            
+            <Tabs defaultValue="account" className="w-full">
+              <TabsList className="grid grid-cols-2 bg-background/40 p-1.5 rounded-2xl mb-8 border border-white/5 h-12">
+                <TabsTrigger value="account" className="rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all italic">Login</TabsTrigger>
+                <TabsTrigger value="password" className="rounded-xl text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all italic">Provision</TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="password" className="text-white flex flex-col gap-2">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                enterApp();
-              }}
-            >
-              <label htmlFor="signup-name">Name</label>
-              <Input
-                id="signup-name"
-                placeholder="Name"
-                type="text"
-                className="border-2 border-[#262829] selection:bg-blue-800"
-              />
-              <label htmlFor="signup-email">Email</label>
-              <Input
-                id="signup-email"
-                placeholder="Email"
-                type="email"
-                className="border-2 border-[#262829] selection:bg-blue-800"
-              />
-              <label htmlFor="signup-password">Password</label>
-              <Input
-                id="signup-password"
-                placeholder="Password"
-                type="password"
-                className="border-2 border-[#262829] selection:bg-blue-800"
-              />
-              <button
-                className={`bg-[#512FA2] rounded-[0.5rem] py-2 font-semibold mt-3 cursor-pointer hover:bg-[#4a2a93] duration-300 flex items-center justify-center gap-2 ${
-                  isLoading ? "pointer-events-none bg-gray-600" : ""
-                }`}
-                type="submit"
+              <TabsContent value="account" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Terminal ID</label>
+                    <Input name="email" placeholder="name@domain.com" type="email" required className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Access Token</label>
+                    <Input name="password" placeholder="••••••••" type="password" required className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
+                  </div>
+                  <Button disabled={isLoading} type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all mt-4">
+                    {isLoading ? <Spinner className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2 fill-primary-foreground" />}
+                    {isLoading ? "Synchronizing..." : "Authenticate"}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="password" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
+                <form onSubmit={handleSignup} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Identity Name</label>
+                    <Input name="name" placeholder="Developer ID" type="text" required className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Terminal ID</label>
+                    <Input name="email" placeholder="name@domain.com" type="email" required className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Access Token</label>
+                    <Input name="password" placeholder="••••••••" type="password" required minLength={6} className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
+                  </div>
+                  <Button disabled={isLoading} type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all mt-4">
+                    {isLoading ? <Spinner className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2 fill-primary-foreground" />}
+                    {isLoading ? "Initialize" : "Initialize Identity"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+
+            <div className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isLoading}
+                onClick={() => void handleGuest()}
+                className="w-full h-11 rounded-xl text-[10px] font-black uppercase tracking-widest"
               >
-                {isLoading && <Spinner />}
-                <p>{isLoading ? "Please wait..." : "Sign up"}</p>
-              </button>
-              <p className="text-gray-500 text-center mt-5">
-                Local demo mode: account creation is bypassed for now.
-              </p>
-            </form>
-          </TabsContent>
-        </Tabs>
-      </div>
+                Continue as guest (demo)
+              </Button>
+            </div>
+          </div>
+          
+          <p className="text-center text-[10px] font-bold text-muted-foreground/30 uppercase tracking-[0.3em]">
+            Authorized Access Only
+          </p>
+        </motion.div>
+      </main>
+
+      <footer className="py-8 opacity-20 text-[10px] font-black uppercase tracking-[0.4em] italic text-center">
+        Neural Handshake v2.4.0
+      </footer>
     </div>
   );
 }

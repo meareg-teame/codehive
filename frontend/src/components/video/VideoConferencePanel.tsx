@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Video } from "lucide-react";
+import { Video, Users, Radio, AlertCircle } from "lucide-react";
 import { useWebRTC } from "../../hooks/useWebRTC";
 import { VideoTile } from "./VideoTile";
 import { MediaControlBar } from "./MediaControlBar";
 import { Socket } from "socket.io-client";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "../ui/button";
 
 interface VideoConferencePanelProps {
   roomId: string;
@@ -102,72 +104,103 @@ export function VideoConferencePanel({ roomId, socket, userId, userName }: Video
 
   if (!isInCall) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-4 bg-gray-900 rounded-lg">
-        <button
-          onClick={joinCall}
-          className="flex flex-col items-center justify-center p-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
-        >
-          <Video size={48} className="mb-4" />
-          <span className="text-xl font-semibold">Join Call</span>
-        </button>
-        {callError && (
-          <p className="mt-4 text-red-400 text-sm text-center bg-red-400/10 p-3 rounded-lg border border-red-400/20">
-            {callError}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center h-full p-8 text-center space-y-8 bg-gradient-to-b from-sidebar/40 to-transparent rounded-2xl border border-white/5 mx-2 my-4 backdrop-blur-sm"
+      >
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+          <div className="relative w-20 h-20 bg-background border border-white/10 rounded-3xl flex items-center justify-center rotate-6 hover:rotate-0 transition-transform duration-500 shadow-2xl">
+            <Video size={36} className="text-primary" />
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <h3 className="text-lg font-black tracking-tighter uppercase italic text-white">Collaboration Core</h3>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-relaxed max-w-[180px] mx-auto">
+            Ready to engage with your team in high-fidelity audio/video.
           </p>
+        </div>
+
+        <Button
+          onClick={joinCall}
+          className="w-full bg-primary text-primary-foreground font-black text-[11px] uppercase tracking-[0.2em] h-11 rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+        >
+          Initialize Uplink
+        </Button>
+
+        {callError && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-[9px] font-bold uppercase tracking-widest"
+          >
+            <AlertCircle size={14} />
+            {callError}
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     );
   }
 
   const participantCount = 1 + peers.size;
-  let gridClass = "grid-cols-1";
-  if (participantCount >= 2) gridClass = "grid-cols-2";
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 p-3 rounded-xl overflow-hidden">
-      <div className="text-gray-400 text-sm font-medium mb-3 flex items-center justify-between px-1">
-        <span>{participantCount} {participantCount === 1 ? "person" : "people"} in call</span>
-        <span className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-          Live
-        </span>
+    <div className="flex flex-col h-full bg-sidebar/20 p-4 relative overflow-hidden">
+      <div className="flex items-center justify-between mb-6 px-1">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-accent/20 flex items-center justify-center">
+            <Users className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest text-foreground italic">Live Session</span>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{participantCount} Participating</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+          <Radio className="w-3 h-3 text-emerald-500 animate-pulse" />
+          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">Secure Uplink</span>
+        </div>
       </div>
 
-      <div className={`grid ${gridClass} gap-3 auto-rows-max flex-1 overflow-y-auto pr-1`}>
-        {/* Local Stream */}
-        <VideoTile
-          stream={localStream}
-          userName={userName}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-4 custom-scrollbar">
+        <div className="grid grid-cols-1 gap-4">
+          <VideoTile
+            stream={localStream}
+            userName={userName}
+            isMuted={isMuted}
+            isCameraOff={isCameraOff}
+            isActiveSpeaker={activeSpeakerId === "local"}
+            isLocal={true}
+            connectionQuality="good"
+          />
+
+          {Array.from(peers.entries()).map(([id, peerData]) => (
+            <VideoTile
+              key={id}
+              stream={peerData.stream}
+              userName={peerData.userName}
+              isMuted={peerData.isMuted}
+              isCameraOff={peerData.isCameraOff || !peerData.stream || peerData.stream.getVideoTracks().length === 0}
+              isActiveSpeaker={activeSpeakerId === id}
+              connectionQuality="good"
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-white/5">
+        <MediaControlBar
           isMuted={isMuted}
           isCameraOff={isCameraOff}
-          isActiveSpeaker={activeSpeakerId === "local"}
-          isLocal={true}
-          connectionQuality="good"
+          isScreenSharing={isScreenSharing}
+          onToggleMute={toggleMute}
+          onToggleCamera={toggleCamera}
+          onToggleScreenShare={toggleScreenShare}
+          onLeaveCall={leaveCall}
         />
-
-        {/* Remote Streams */}
-        {Array.from(peers.entries()).map(([id, peerData]) => (
-          <VideoTile
-            key={id}
-            stream={peerData.stream}
-            userName={peerData.userName}
-            isMuted={peerData.isMuted}
-            isCameraOff={peerData.isCameraOff || !peerData.stream || peerData.stream.getVideoTracks().length === 0}
-            isActiveSpeaker={activeSpeakerId === id}
-            connectionQuality="good" // Real implementation would query peer.peer._pc.getStats()
-          />
-        ))}
       </div>
-
-      <MediaControlBar
-        isMuted={isMuted}
-        isCameraOff={isCameraOff}
-        isScreenSharing={isScreenSharing}
-        onToggleMute={toggleMute}
-        onToggleCamera={toggleCamera}
-        onToggleScreenShare={toggleScreenShare}
-        onLeaveCall={leaveCall}
-      />
     </div>
   );
 }

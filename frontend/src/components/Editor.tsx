@@ -1,23 +1,51 @@
 import { useNavigate, useParams } from "react-router-dom";
-import MainNavbar from "./MainNavbar";
-import MainFooter from "./MainFooter";
+import { Sidebar, MobileSidebar } from "./Sidebar";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "./ui/resizable";
 import {
+  ChevronRight,
   CircleAlert,
+  Code2,
+  FileCode,
+  Files,
+  Plus,
   Play,
-  Settings,
   Share2,
-  SquarePlus,
-  WandSparkles,
+  Sparkles,
+  Terminal,
+  Trash2,
+  UserPlus,
   X,
+  History,
+  Layout,
+  LayoutGrid,
+  ShieldCheck,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import { legacyProjects } from "@/api";
 import axios from "axios";
-import emptyProject from "../assets/emptyProject.png";
+import { isUnauthorizedError } from "@/api/client";
+import { useSocketOptional } from "@/app/providers/SocketProvider";
+import {
+  SOCKET_EVENTS,
+  accessGrantedChannel,
+  accessRequestedChannel,
+} from "@/realtime/events";
+import {
+  reverseProjectFiles,
+  useEditorSocket,
+} from "@/realtime/useEditorSocket";
+import { YWS_URL } from "@/realtime/yjs";
 import {
   Dialog,
   DialogClose,
@@ -27,10 +55,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Button } from "./ui/button";
-import { Label } from "./ui/label";
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -42,23 +70,50 @@ import { Toaster, toast } from "sonner";
 
 import isValidFilename from "valid-filename";
 import MonacoEditor from "@monaco-editor/react";
-import selectToStart from "../assets/selectToStart.png";
 
 import * as Y from "yjs";
-// import { WebrtcProvider } from "y-webrtc";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
-import { io } from "socket.io-client";
+import type { Socket } from "socket.io-client";
+import type * as monaco from "monaco-editor";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "./ui/tooltip";
 import { VideoConferencePanel } from "./video/VideoConferencePanel";
 import { usePresence } from "../hooks/usePresence";
+import { LANGUAGE_CATALOG, type Language } from "../lib/languages";
+import type { ProjectDetails, ProjectFile } from "@/types";
+import { StatusBar } from "./StatusBar";
+import { motion, AnimatePresence } from "framer-motion";
 
-function cleanError(stderr) {
+interface YjsInstances {
+  provider: WebsocketProvider;
+  ydoc: Y.Doc;
+  editor: monaco.editor.IStandaloneCodeEditor;
+}
+
+const emptyProjectDetails: ProjectDetails = {
+  _id: "",
+  name: "",
+  language: "nodejs",
+  owner: "",
+  collaborators: [],
+  files: [],
+  accessRequests: [],
+  visibility: "private",
+  creationTime: 0,
+  editedTime: 0,
+};
+
+function getInputValue(form: HTMLFormElement, fieldName: string) {
+  const field = form.elements.namedItem(fieldName);
+  return field instanceof HTMLInputElement ? field.value : "";
+}
+
+function cleanError(stderr: string) {
   const firstLine = stderr
     .split("\n")
-    .find((line) => line.includes("Error") || line.includes("Exception"));
+    .find((line: string) => line.includes("Error") || line.includes("Exception"));
 
   const codeLineMatch = stderr.match(/file0\.code:(\d+)/);
   const lineNumber = codeLineMatch ? codeLineMatch[1] : null;
@@ -71,966 +126,674 @@ function cleanError(stderr) {
 }
 
 function Editor() {
-  const { projectId } = useParams();
-  const [projectDetails, setProjectDetails] = useState({});
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const [IsFileExist, setIsFileExist] = useState(false);
-  const editorRef = useRef(null);
-  const monacoRef = useRef(null);
-  const selectedFileRef = useRef(null);
-  const yRef = useRef(null);
+  const { projectId = "" } = useParams();
+  const [projectDetails, setProjectDetails] = useState<ProjectDetails>(emptyProjectDetails);
+  const sharedSocket = useSocketOptional();
+  const [isFileExist, setIsFileExist] = useState(false);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<unknown>(null);
+  const selectedFileRef = useRef<string | null>(null);
+  const yRef = useRef<{ ydoc: Y.Doc; provider: WebsocketProvider; type: Y.Text; binding: MonacoBinding | null } | null>(null);
   const [isCodeRunning, setIsCodeRunning] = useState(false);
-  const [codeOutput, setCodeOutput] = useState(
-    "Run the code to see the output"
-  );
+  const [codeOutput, setCodeOutput] = useState("Run code to see output...");
   const [isError, setIsError] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [editorValue, setEditorValue] = useState("");
-  const languageExtension = {
-    nodejs: ".js",
-    python: ".py",
-    cpp: ".cpp",
-    java: ".java",
-  };
-  const languageName = {
-    nodejs: "javascript",
-    python: "python",
-    cpp: "cpp",
-    java: "java",
-  };
   const navigate = useNavigate();
   const [isAccessAllowed, setIsAccessAllowed] = useState(true);
   const [requestedBy, setRequestedBy] = useState("");
-  const [requestedProjectId, setRequestedProjectId] = useState("");
   const [user, setUser] = useState("");
   const [aiExplaination, setAiExplaination] = useState("");
   const [roomState, setRoomState] = useState("Initialized");
-  const [yjsInstances, setYjsInstances] = useState(null);
-  const { onlineUsers } = usePresence(yjsInstances?.provider, yjsInstances?.editor, user, yjsInstances?.ydoc);
+  const [yjsInstances, setYjsInstances] = useState<YjsInstances | null>(null);
+  
+  const currentLanguage = projectDetails.language;
+  const currentLanguageMeta = LANGUAGE_CATALOG[currentLanguage] || LANGUAGE_CATALOG.nodejs;
+  const currentLanguageExtension = currentLanguageMeta.extension;
+  const currentLanguageName = currentLanguageMeta.monacoLanguage;
+
+  const { onlineUsers } = usePresence(
+    yjsInstances?.provider ?? null,
+    yjsInstances?.editor ?? null,
+    user,
+    yjsInstances?.ydoc ?? null
+  );
 
   useEffect(() => {
-    axios
-      .post(
-        BACKEND_URL + "/project/get-project-details",
-        { id: projectId },
-        { withCredentials: true }
-      )
+    legacyProjects
+      .getProjectDetails(projectId)
       .then((res) => {
-        setProjectDetails({
-          ...res.data.projectDetails,
-          files: [...res.data.projectDetails.files].reverse(),
-        });
-        document.title = `${res.data.projectDetails.name} - CodeHive`;
-        setUser(res.data.user);
+        setProjectDetails(reverseProjectFiles(res.projectDetails));
+        document.title = `${res.projectDetails.name} - CodeHive`;
+        setUser(res.user);
       })
-      .catch((e) => {
-        if (e.response.status === 401) navigate("/");
-        if (e.response.status === 403) {
+      .catch((error) => {
+        if (!axios.isAxiosError(error)) return;
+        if (isUnauthorizedError(error)) {
+          navigate("/auth");
+          return;
+        }
+        if (error.response?.status !== 403) return;
+        const data = error.response?.data as {
+          projectData?: ProjectDetails;
+          requestedBy?: string;
+        };
+        if (data?.projectData) {
           setIsAccessAllowed(false);
-          setProjectDetails({
-            ...e.response.data.projectData,
-            files: e.response.data.projectData.files.reverse(),
-          });
-          document.title = `${e.response.data.projectData.name} - CodeHive`;
-          setRequestedBy(e.response.data.requestedBy);
-          setUser(e.response.data.requestedBy);
+          setProjectDetails(reverseProjectFiles(data.projectData));
+          document.title = `${data.projectData.name} - CodeHive`;
+          setRequestedBy(data.requestedBy || "");
+          setUser(data.requestedBy || "");
         }
       });
-  }, [BACKEND_URL, navigate, projectId, selectedFile]);
+  }, [navigate, projectId, selectedFile]);
 
-  //socket coonect
-  const socketRef = useRef(null);
-  const [socketConnection, setSocketConnection] = useState(null);
-
-  useEffect(() => {
-    const socket = io(BACKEND_URL, {
-      transports: ["polling", "websocket"],
-      withCredentials: true,
-    });
-
-    socketRef.current = socket;
-    setSocketConnection(socket);
-
-    socket.on("updated files", (data) => {
-      setProjectDetails({
-        ...data.projectDetails,
-        files: [...data.projectDetails.files].reverse(),
-      });
-    });
-
-    socket.on("room:state-change", (data) => {
-      setRoomState(data.newState);
-    });
-
-    socket.on("room:sync-start", () => {
-      setRoomState("Synchronizing");
-      // Simulate sync confirm after a short delay since y-websocket handles actual sync
-      setTimeout(() => {
-        socket.emit("room:sync-confirm", { roomId: projectId });
-      }, 500);
-    });
-
-    // return () => {
-    //   socket.disconnect();
-    // };
-  }, [BACKEND_URL, projectId]);
+  const socketRef = useRef<Socket | null>(null);
+  const socketConnection = sharedSocket;
 
   useEffect(() => {
-    if (socketConnection && projectId && user) {
-      socketConnection.emit("room:join", { roomId: projectId, userId: user });
-    }
-  }, [socketConnection, projectId, user]);
+    socketRef.current = sharedSocket ?? null;
+  }, [sharedSocket]);
 
-  const accessDeniedPageRef = useRef(null);
+  const onFilesUpdated = useCallback(
+    (data: { projectDetails: ProjectDetails }) => {
+      setProjectDetails(reverseProjectFiles(data.projectDetails));
+    },
+    []
+  );
+
+  const onRoomStateChange = useCallback((state: string) => {
+    setRoomState(state);
+  }, []);
+
+  useEditorSocket({
+    socket: socketConnection,
+    projectId,
+    userId: user,
+    onFilesUpdated,
+    onRoomStateChange,
+  });
+
+  const accessDeniedPageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const socket = socketRef.current;
+    if (!socket) return;
 
-    socket.on(`${user}:access requested`, (data) => {
+    socket.on(accessRequestedChannel(user), (data: { projectId: string; requestedBy: string; projectName: string }) => {
       toast.custom(
         (t) => (
-          <div className="relative bg-zinc-900 text-white p-4 rounded-[1rem] shadow-lg w-[320px]">
-            <button
-              onClick={() => toast.dismiss(t)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-white"
-            >
-              <X size={16} />
-            </button>
-
-            <p className="font-semibold">Access Request</p>
-            <p className="text-sm text-gray-400">
-              {data.requestedBy} wants access to "{data.projectName}"
+          <div className="bg-popover border border-white/10 p-4 rounded-xl shadow-2xl w-[320px] backdrop-blur-md">
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4 text-primary" />
+                </div>
+                <p className="font-semibold text-sm">Access Request</p>
+              </div>
+              <button onClick={() => toast.dismiss(t)} className="text-muted-foreground hover:text-foreground">
+                <X size={14} />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              <span className="font-medium text-foreground">{data.requestedBy}</span> wants to collaborate on <span className="font-medium text-foreground">"{data.projectName}"</span>
             </p>
-            <button
-              className="mt-2 text-[0.7rem] text-[#aaa8a8] border-1 border-[#555454] px-2 py-1 rounded-[0.4rem] hover:bg-[#222222] hover:border-[#777676] duration-300 cursor-pointer"
-              onClick={() => {
-                toast.dismiss(t);
-                toast.success("Access Granted");
-                socket.emit("grant project access", {
-                  projectId: data.projectId,
-                  requestedBy: data.requestedBy,
-                });
-              }}
-            >
-              Allow Access
-            </button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs font-semibold"
+                onClick={() => {
+                  toast.dismiss(t);
+                  toast.success("Access Granted");
+                  socket.emit(SOCKET_EVENTS.grantProjectAccess, {
+                    projectId: data.projectId,
+                    requestedBy: data.requestedBy,
+                  });
+                }}
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs"
+                onClick={() => toast.dismiss(t)}
+              >
+                Decline
+              </Button>
+            </div>
           </div>
         ),
-        {
-          duration: Infinity,
-          style: {
-            borderRadius: "1rem",
-          },
-        }
+        { duration: Infinity }
       );
     });
 
-    socket.on(`${user}:access granted`, (data) => {
+    socket.on(accessGrantedChannel(user), () => {
       if (!accessDeniedPageRef.current) return;
-      accessDeniedPageRef.current.innerText =
-        "You have been granted access! Please refresh the page.";
-      accessDeniedPageRef.current.style.color = "white";
-      accessDeniedPageRef.current.style.fontSize = "1.5rem";
-      accessDeniedPageRef.current.style.marginTop = "20rem";
-      accessDeniedPageRef.current.style.fontWeight = "600";
-      // setIsAccessAllowed(true);
+      accessDeniedPageRef.current.innerHTML = `
+        <div class="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
+          <div class="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mb-2">
+            <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Access Granted!</h2>
+          <p class="text-muted-foreground">You now have permission to collaborate on this project.</p>
+          <button onclick="window.location.reload()" class="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity">Refresh Workspace</button>
+        </div>
+      `;
     });
-  }, [requestedBy, user]);
+  }, [user]);
 
   const [isAccessRequested, setIsAccessRequested] = useState(false);
-  if (!isAccessAllowed)
+
+  const handleRunCode = async () => {
+    const code = editorRef.current?.getValue() ?? "";
+    setIsCodeRunning(true);
+    if (socketRef.current) {
+      socketRef.current.emit(SOCKET_EVENTS.codeExecute, { roomId: projectId });
+    }
+    try {
+      const response = await legacyProjects.runCode(code, currentLanguage);
+      const result = response.result;
+
+      if (!result) {
+        setIsError(true);
+        setCodeOutput(response?.msg || "Code runner is unavailable.");
+      } else if (result.stderr !== "") {
+        const err = cleanError(result.stderr);
+        setIsError(true);
+        setCodeOutput(err.raw || err.message);
+      } else {
+        setIsError(false);
+        setCodeOutput(result.stdout?.trim() ? result.stdout : "Program finished with no output.");
+      }
+    } catch (error) {
+      setIsError(true);
+      setCodeOutput("Failed to execute code. Check connection.");
+    }
+    setIsCodeRunning(false);
+  };
+
+  const handleFileSelect = (file: ProjectFile) => {
+    if (yRef.current) {
+      yRef.current.ydoc.destroy();
+      yRef.current.provider.destroy();
+    }
+    
+    setSelectedFile(file.name);
+    selectedFileRef.current = file.name;
+    setEditorValue(file.content);
+    if (editorRef.current) {
+      editorRef.current.setValue(file.content);
+    }
+  };
+
+  if (!isAccessAllowed) {
     return (
-      <div className="flex flex-col bg-[#0F0F10] min-h-screen overflow-hidden items-center justify-center bg-[url('../../grid.svg')]">
-        <div className="fixed top-0 w-full">
-          <MainNavbar />
-          <div
-            className="flex flex-col items-center justify-center mt-40 text-center"
-            ref={accessDeniedPageRef}
+      <div className="flex bg-background min-h-screen relative overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col items-center justify-center relative">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(101,163,247,0.05),transparent)] pointer-events-none" />
+          <header className="h-14 border-b border-white/5 flex items-center gap-4 px-8 bg-background/50 backdrop-blur-md shrink-0 w-full absolute top-0">
+             <div className="md:hidden">
+               <MobileSidebar />
+             </div>
+             <ShieldCheck className="w-4 h-4 text-destructive" />
+             <h2 className="text-xs font-black uppercase tracking-widest italic">Security Clearance Required</h2>
+          </header>
+        <div className="flex-1 flex items-center justify-center w-full px-6" ref={accessDeniedPageRef}>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md w-full text-center space-y-6"
           >
-            <h1 className="text-white font-bold text-2xl mt-20">
-              Access Denied for {projectDetails.name}
-            </h1>
-            <p className="text-gray-400 mt-4">
-              You do not have permission to access this project.
-            </p>
-            <button
-              className={`bg-[#522DA5] mt-6 text-white px-4 py-[0.3rem] font-semibold rounded-[0.3rem] cursor-pointer hover:bg-[#4c2a97] duration-300 ${
-                isAccessRequested ? "bg-gray-600 pointer-events-none" : ""
-              } ${
-                projectDetails.accessRequests.includes(requestedBy)
-                  ? "bg-gray-600 pointer-events-none"
-                  : ""
-              }`}
-              onClick={(e) => {
+            <div className="w-20 h-20 bg-destructive/10 rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-3">
+              <Layout className="w-10 h-10 text-destructive" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight text-white uppercase italic">Access Restricted</h1>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                You've reached the gates of <span className="text-foreground font-medium">{projectDetails.name}</span>. 
+                Please request access from the project owner to start collaborating.
+              </p>
+            </div>
+            <Button
+              className="w-full bg-primary text-primary-foreground font-bold h-12 text-sm uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20"
+              disabled={isAccessRequested || (projectDetails.accessRequests ?? []).includes(requestedBy)}
+              onClick={() => {
                 setIsAccessRequested(true);
-                e.currentTarget.innerText = "Access Requested";
-                socketRef.current.emit("request access", {
+                socketRef.current?.emit(SOCKET_EVENTS.requestAccess, {
                   projectId: projectId,
                   requestedBy: requestedBy,
                   projectOwner: projectDetails.owner,
                 });
               }}
             >
-              {projectDetails.accessRequests.includes(requestedBy)
-                ? "Access Requested"
+              {isAccessRequested || projectDetails.accessRequests.includes(requestedBy)
+                ? "Request Pending..."
                 : "Request Access"}
-            </button>
-          </div>
+            </Button>
+          </motion.div>
         </div>
       </div>
+    </div>
     );
-  else
-    return (
-      <div className="flex flex-col bg-[#0F0F10] min-h-screen overflow-hidden">
-        <MainNavbar />
-        <Toaster
-          position="bottom-center"
-          toastOptions={{
-            style: {
-              background: "#0f0f10",
-              color: "white",
-              border: "3px solid #512FA2",
-            },
-          }}
-        />
+  }
 
-        <div className="w-full flex-1 p-4 flex flex-col text-white">
-          <ResizablePanelGroup
-            direction="horizontal"
-            className="rounded-lg border-2 border-[#1C1D24] h-full w-full flex-1 max-h-[36.6rem]"
-          >
-            <ResizablePanel
-              defaultSize={10}
-              className="flex max-w-[15.5rem] min-w-[2rem]"
-            >
-              <div className="flex flex-col h-full items-center px-6 py-4 w-[11rem] w-full">
-                <div className="text-white font-bold text-[1.1rem] flex flex-col gap-3 justify-start w-full max-w-[12rem]">
-                  <p className="text-gray-500 text-[0.84rem]">FILE EXPLORER</p>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[1.3rem]">{projectDetails.name}</p>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Share2
-                          size={16}
-                          className="mt-1 cursor-pointer text-neutral-600"
-                          onClick={() => {
-                            navigator.clipboard.writeText(document.location.href);
-                            toast("Share Link copied to clipboard!");
-                          }}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Copy Share Link</p>
-                      </TooltipContent>
-                    </Tooltip>
+  return (
+    <TooltipProvider>
+      <div className="flex h-screen bg-background overflow-hidden font-sans selection:bg-primary/30">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-4">
+             <div className="md:hidden">
+               <MobileSidebar />
+             </div>
+             <div className="flex items-center gap-2 text-muted-foreground">
+               <LayoutGrid className="w-4 h-4" />
+               <ChevronRight className="w-3 h-3" />
+               <span className="text-[10px] font-black uppercase tracking-widest italic text-foreground">{projectDetails.name}</span>
+             </div>
+          </div>
+          <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
+               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+               <span className="text-[9px] font-black text-primary uppercase tracking-tighter">Sync Active</span>
+             </div>
+          </div>
+        </header>
+        
+        <main className="flex-1 flex overflow-hidden relative">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            {/* Sidebar: File Explorer */}
+            <ResizablePanel defaultSize={16} minSize={12} maxSize={25} className="bg-sidebar/30 backdrop-blur-sm border-r border-white/5 flex flex-col">
+              <div className="p-4 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Files className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Explorer</span>
                   </div>
-                  <Dialog
-                    onOpenChange={(e) => {
-                      if (e) setIsFileExist(false);
-                    }}
-                  >
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                      }}
-                    >
+                  <div className="flex items-center gap-1">
+                     <Dialog onOpenChange={(e) => e && setIsFileExist(false)}>
                       <DialogTrigger asChild>
-                        <button className="font-semibold text-[0.9rem] flex items-center gap-2 bg-[#4E29A4] pl-5 py-1 rounded-[0.4rem]  duration-300 hover:opacity-85 cursor-pointer w-[8.4rem]">
-                          <SquarePlus size={18} /> <p>New File</p>
-                        </button>
+                        <Button variant="ghost" size="icon" className="w-6 h-6 rounded-md hover:bg-white/5">
+                          <Plus className="w-4 h-4" />
+                        </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px] bg-[#0C0E15] border-1 border-[#1C1D24] text-white">
+                      <DialogContent className="bg-popover border border-white/10 rounded-2xl max-w-sm">
                         <DialogHeader>
-                          <DialogTitle>New File</DialogTitle>
-                          <DialogDescription>
-                            Create a new file here. Just write the file name
-                          </DialogDescription>
+                          <DialogTitle className="text-lg">Create New File</DialogTitle>
+                          <DialogDescription className="text-xs">Enter a filename for your new resource.</DialogDescription>
                         </DialogHeader>
                         <form
+                          className="space-y-4 mt-2"
                           onSubmit={async (e) => {
                             e.preventDefault();
-                            const fileName = e.currentTarget[0].value;
-                            if (fileName.trim() === "") {
-                              toast("Invalid file name!", {
-                                style: {
-                                  border: "2px solid red",
-                                },
-                              });
+                            const fileName = getInputValue(e.currentTarget, "fileName").trim();
+                            if (!fileName || !isValidFilename(fileName) || fileName.includes(".")) {
+                              toast.error("Invalid filename format");
                               return;
                             }
-                            if (
-                              !isValidFilename(fileName) ||
-                              fileName.includes(".")
-                            ) {
-                              toast("Invalid file name!", {
-                                style: {
-                                  border: "2px solid red",
-                                },
-                              });
-                              return;
-                            }
-
+                            const fullName = fileName + currentLanguageExtension;
                             try {
-                              const response = await axios.post(
-                                BACKEND_URL + "/project/create-file",
-                                {
-                                  projectId: projectId,
-                                  fileName:
-                                    e.currentTarget[0].value +
-                                    languageExtension[projectDetails.language],
-                                },
-                                { withCredentials: true }
-                              );
-                              // setProjectDetails({
-                              //   ...response.data.projectDetails,
-                              //   files:
-                              //     response.data.projectDetails.files.reverse(),
-                              // });
-                              toast(
-                                `File "${
-                                  fileName +
-                                  languageExtension[projectDetails.language]
-                                }" created`
-                              );
-                              setIsFileExist(true);
-                              // setSelectedFile(
-                              //   fileName +
-                              //     languageExtension[projectDetails.language]
-                              // );
-                              // selectedFileRef.current =
-                              //   fileName +
-                              //   languageExtension[projectDetails.language];
-                              // editorRef.current.setValue("");
-                            } catch (e) {
-                              console.log(e);
-                              if (e.response.status === 401) navigate("/");
+                              const response = await legacyProjects.createFile(projectId, fullName);
+                              setProjectDetails(reverseProjectFiles(response.projectDetails));
+                              toast.success(`Created ${fullName}`);
+                              handleFileSelect({ name: fullName, content: "" });
+                            } catch (err) {
+                              toast.error("Failed to create file");
                             }
                           }}
                         >
-                          <div className="grid gap-4">
-                            <div className="grid gap-3">
-                              <Label htmlFor="name-1">File name</Label>
-                              <div className="flex gap-2 items-start">
-                                <div className="flex flex-col w-full">
-                                  <Input
-                                    id="name-1"
-                                    name="name"
-                                    placeholder="File name"
-                                    className="selection:bg-blue-700 w-full"
-                                    required
-                                    onInput={(e) => {
-                                      const fileName =
-                                        e.currentTarget.value.trim() +
-                                        languageExtension[
-                                          projectDetails.language
-                                        ];
-                                      for (let file of projectDetails.files) {
-                                        if (file.name === fileName) {
-                                          setIsFileExist(true);
-                                          break;
-                                        } else {
-                                          setIsFileExist(false);
-                                        }
-                                      }
-                                    }}
-                                  />
-                                  {IsFileExist && (
-                                    <Alert
-                                      variant="default"
-                                      className="bg-transparent border-none p-0"
-                                    >
-                                      <AlertDescription className="text-[#D1010C] font-semibold ml-1 mt-2 flex">
-                                        <CircleAlert
-                                          size={17}
-                                          className="mt-[0.12rem]"
-                                        />
-                                        File already exists!
-                                      </AlertDescription>
-                                    </Alert>
-                                  )}
-                                </div>
-
-                                <div className="bg-[#5c5b5b] py-[0.4rem] px-4 font-semibold rounded-[0.4rem]">
-                                  {languageExtension[projectDetails.language]}
-                                </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 relative">
+                              <Input name="fileName" placeholder="filename" className="bg-accent/30 border-white/5 h-10 pr-12 rounded-xl" autoFocus />
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground opacity-50 uppercase tracking-tighter">
+                                {currentLanguageExtension}
                               </div>
                             </div>
                           </div>
-                          <DialogFooter className="mt-5">
-                            <DialogClose asChild>
-                              <Button
-                                variant="outline"
-                                className="bg-[#17171D] border-1 border-[#2c2e3f] hover:bg-[#17171D] hover:text-white cursor-pointer"
-                              >
-                                Cancel
-                              </Button>
-                            </DialogClose>
-                            <Button
-                              type="submit"
-                              className={`bg-[#4E29A4] hover:bg-[#43238d] cursor-pointer px-5 ${
-                                IsFileExist
-                                  ? "bg-gray-500 pointer-events-none"
-                                  : ""
-                              }`}
-                            >
-                              Create
-                            </Button>
-                          </DialogFooter>
+                          <Button type="submit" className="w-full bg-primary text-primary-foreground font-semibold h-10 rounded-xl">
+                            Create Resource
+                          </Button>
                         </form>
                       </DialogContent>
-                    </form>
-                  </Dialog>
+                    </Dialog>
+                    <Button variant="ghost" size="icon" className="w-6 h-6 rounded-md hover:bg-white/5" onClick={() => {
+                        navigator.clipboard.writeText(window.location.href);
+                        toast.success("Project link copied to clipboard");
+                      }}>
+                      <Share2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-2 w-full mt-3 overflow-y-auto overflow-x-hidden max-h-full scrollbar-thin scrollbar-track-[#000]">
-                  {projectDetails?.files?.length === 0 && (
-                    <div className="flex flex-col items-center mt-[10rem] text-[]">
-                      <img src={emptyProject} className="w-[2rem]" />
-                      <p className="text-gray-400 italic text-center">
-                        No files to show
-                      </p>
+                <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                  {projectDetails.files.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                      <Code2 className="w-12 h-12 mb-4 stroke-1" />
+                      <p className="text-[10px] uppercase font-bold tracking-widest text-center px-4">No resources found</p>
                     </div>
-                  )}
-
-                  {projectDetails?.files?.map((file, index) => {
-                    return (
-                      <ContextMenu>
+                  ) : (
+                    projectDetails.files.map((file) => (
+                      <ContextMenu key={file.name}>
                         <ContextMenuTrigger>
-                          <div
-                            className={`bg-[#1c1d2d h-fit py-1 rounded-[0.3rem] px-2 text-[0.9rem] flex items-center justify-start w-fit min-w-[12.5rem] cursor-pointer hover:bg-[#1C1D24] ${
+                          <button
+                            onClick={() => handleFileSelect(file)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-200 group relative ${
                               selectedFile === file.name
-                                ? "bg-[#1C1D24] font-bold"
-                                : ""
+                                ? "bg-primary/10 text-primary font-semibold shadow-[inset_0_0_0_1px_rgba(101,163,247,0.1)]"
+                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                             }`}
-                            key={index}
-                            onClick={(e) => {
-                              if (yRef.current) {
-                                yRef.current.ydoc.destroy();
-                                yRef.current.provider.destroy();
-                              }
-                              yRef.current.ydoc = new Y.Doc();
-                              yRef.current.provider = new WebsocketProvider(
-                                import.meta.env.VITE_YWS_URL,
-                                `${projectId}:${file.name}`,
-                                yRef.current.ydoc
-                              );
-                              yRef.current.type =
-                                yRef.current.ydoc.getText("monaco");
-                              const monacoBinding = new MonacoBinding(
-                                yRef.current.type,
-                                editorRef.current.getModel(),
-                                new Set([editorRef.current]),
-                                yRef.current.provider.awareness
-                              );
-
-                              axios
-                                .post(
-                                  BACKEND_URL + "/project/get-project-details",
-                                  { id: projectId },
-                                  { withCredentials: true }
-                                )
-                                .then((res) => {
-                                  // setProjectDetails({
-                                  //   ...res.data.projectDetails,
-                                  //   files:
-                                  //     res.data.projectDetails.files.reverse(),
-                                  // });
-                                  setSelectedFile(file.name);
-                                  selectedFileRef.current = file.name;
-                                  if (editorRef.current) {
-                                    editorRef.current.setValue(file.content);
-                                  } else {
-                                    setEditorValue(file.content);
-                                  }
-                                })
-                                .catch((e) => {
-                                  if (e.response.status === 401) navigate("/");
-                                });
-                            }}
                           >
-                            <div className="mr-1 bg-[#3C210E] text-[#E27311] rounded-[0.2rem] px-1 font-bold">
-                              {(projectDetails?.language
-                                ? languageExtension[projectDetails.language]
-                                : ".txt"
-                              )
-                                .slice(1)
-                                .toUpperCase()}
-                            </div>
-                            <p className="text-gray-300 ml-1 wrap-anywhere">
-                              {file.name}
-                            </p>
-                          </div>
+                            <FileCode className={`w-3.5 h-3.5 ${selectedFile === file.name ? "text-primary" : "text-muted-foreground opacity-60"}`} />
+                            <span className="truncate flex-1 text-left">{file.name}</span>
+                            {selectedFile === file.name && (
+                              <motion.div layoutId="active-file" className="absolute left-0 w-1 h-4 bg-primary rounded-r-full" />
+                            )}
+                          </button>
                         </ContextMenuTrigger>
-                        <ContextMenuContent className="bg-[#0C0E15] text-white border-1 border-[#1C1D24]">
-                          <Dialog
-                            onOpenChange={(e) => {
-                              if (e) setIsFileExist(false);
-                            }}
-                          >
-                            <DialogTrigger className="text-[0.9rem] cursor-pointer hover:bg-[#1C1D24] px-2 py-1 rounded-[0.3rem]">
-                              Rename "{file.name}"
-                            </DialogTrigger>
-                            <DialogContent className="bg-[#0C0E15] border-1 border-[#1C1D24] text-white">
-                              <DialogHeader>
-                                <DialogTitle>Rename "{file.name}"</DialogTitle>
-                                <DialogDescription>
-                                  Rename the file, make sure to give it a unique
-                                  name
-                                </DialogDescription>
-                              </DialogHeader>
-                              <form
-                                className="flex flex-col gap-2"
-                                onSubmit={async (e) => {
-                                  e.preventDefault();
-                                  const newFileName = e.currentTarget[0].value;
-                                  if (newFileName.trim() === "") {
-                                    toast("Invalid file name!", {
-                                      style: {
-                                        border: "2px solid red",
-                                      },
-                                    });
-                                    return;
-                                  }
-                                  if (
-                                    !isValidFilename(newFileName) ||
-                                    newFileName.includes(".")
-                                  ) {
-                                    toast("Invalid file name!", {
-                                      style: {
-                                        border: "2px solid red",
-                                      },
-                                    });
-                                    return;
-                                  }
-
-                                  try {
-                                    const response = await axios.post(
-                                      BACKEND_URL + "/project/rename-file",
-                                      {
-                                        projectId: projectId,
-                                        newFileName:
-                                          newFileName +
-                                          languageExtension[
-                                            projectDetails.language
-                                          ],
-                                        oldFileName: file.name,
-                                      },
-                                      { withCredentials: true }
-                                    );
-                                    toast(
-                                      `File "${file.name}" renamed to "${
-                                        newFileName +
-                                        languageExtension[
-                                          projectDetails?.language
-                                        ]
-                                      }"`
-                                    );
-                                    setProjectDetails({
-                                      ...response.data.projectDetails,
-                                      files:
-                                        response.data.projectDetails.files.reverse(),
-                                    });
-                                    setIsFileExist(true);
-                                  } catch (e) {
-                                    console.log(e);
-                                    if (e.response.status === 401)
-                                      navigate("/");
-                                  }
-                                }}
-                              >
-                                <label htmlFor="new-file">New name</label>
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="File name"
-                                    id="new-file"
-                                    required
-                                    defaultValue={file.name.split(".")[0]}
-                                    className="selection:bg-blue-800"
-                                    onInput={(e) => {
-                                      const fileName =
-                                        e.currentTarget.value.trim() +
-                                        languageExtension[
-                                          projectDetails.language
-                                        ];
-                                      for (let file of projectDetails.files) {
-                                        if (file.name === fileName) {
-                                          setIsFileExist(true);
-                                          break;
-                                        } else {
-                                          setIsFileExist(false);
-                                        }
-                                      }
-                                    }}
-                                  />
-                                  <div className="bg-[#5c5b5b] py-[0.4rem] px-4 font-semibold rounded-[0.4rem]">
-                                    {languageExtension[projectDetails.language]}
-                                  </div>
-                                </div>
-                                {IsFileExist && (
-                                  <Alert
-                                    variant="default"
-                                    className="bg-transparent border-none p-0 mt-[-0.6rem] ml-[-0.3rem]"
-                                  >
-                                    <AlertDescription className="text-[#D1010C] font-semibold ml-1 mt-2 flex">
-                                      <CircleAlert
-                                        size={17}
-                                        className="mt-[0.12rem]"
-                                      />
-                                      File already exists!
-                                    </AlertDescription>
-                                  </Alert>
-                                )}
-                                <DialogFooter className="mt-2">
-                                  <DialogClose asChild>
-                                    <Button
-                                      variant="outline"
-                                      className="bg-[#17171D] border-1 border-[#2c2e3f] hover:bg-[#17171D] hover:text-white cursor-pointer"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </DialogClose>
-                                  <Button
-                                    type="submit"
-                                    className={`bg-[#4E29A4] hover:bg-[#43238d] cursor-pointer px-4 ${
-                                      IsFileExist
-                                        ? "bg-gray-500 pointer-events-none"
-                                        : ""
-                                    }`}
-                                  >
-                                    Rename
-                                  </Button>
-                                </DialogFooter>
-                              </form>
-                            </DialogContent>
-                          </Dialog>
+                        <ContextMenuContent className="bg-popover border border-white/5 rounded-xl p-1 shadow-2xl">
+                          <ContextMenuItem className="text-xs flex items-center gap-2 px-3 py-2 rounded-lg focus:bg-accent">
+                            <Layout className="w-3 h-3" /> Duplicate
+                          </ContextMenuItem>
                           <ContextMenuItem
-                            className="text-[#D65658] hover:bg-[#0C0E15] cursor-pointer data-[highlighted]:bg-[#1C1D24] data-[highlighted]:text-[#c85153]"
                             onClick={async () => {
-                              if (file.name === selectedFileRef.current) {
-                                // selectedFileRef.current=null;
-                                setSelectedFile(null);
-                              }
                               try {
-                                const response = await axios.post(
-                                  BACKEND_URL + "/project/delete-file",
-                                  {
-                                    id: projectDetails._id,
-                                    fileName: file.name,
-                                  },
-                                  { withCredentials: true }
+                                const response = await legacyProjects.deleteFile(
+                                  projectDetails._id,
+                                  file.name
                                 );
-                                setProjectDetails({
-                                  ...response.data.projectDetails,
-                                  files:
-                                    response.data.projectDetails.files.reverse(),
-                                });
-                              } catch (e) {
-                                console.log(e);
-                                if (e.response.status === 401) navigate("/");
+                                setProjectDetails(reverseProjectFiles(response.projectDetails));
+                                if (selectedFile === file.name) setSelectedFile(null);
+                                toast.success(`Deleted ${file.name}`);
+                              } catch (err) {
+                                toast.error("Failed to delete resource");
                               }
                             }}
+                            className="text-xs flex items-center gap-2 px-3 py-2 rounded-lg text-red-400 focus:bg-red-400/10 focus:text-red-400"
                           >
-                            Delete "{file.name}"
+                            <Trash2 className="w-3 h-3" /> Delete Resource
                           </ContextMenuItem>
                         </ContextMenuContent>
                       </ContextMenu>
-                    );
-                  })}
+                    ))
+                  )}
+                </div>
+
+                <div className="pt-4 mt-auto border-t border-white/5 space-y-4">
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-[0.2em] px-2">Collaborators</p>
+                    <div className="flex -space-x-2 px-2">
+                       {/* Placeholder for collaborator avatars */}
+                       <div className="w-7 h-7 rounded-full border-2 border-background bg-accent flex items-center justify-center text-[10px] font-bold">+{onlineUsers}</div>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="w-full h-9 rounded-xl border-white/5 text-[11px] font-semibold flex items-center gap-2 bg-accent/20 hover:bg-accent/40 transition-colors">
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Invite Team
+                  </Button>
                 </div>
               </div>
             </ResizablePanel>
 
-            <ResizableHandle className="bg-[#1C1D24] w-1" />
+            <ResizableHandle className="w-[1px] bg-white/5 transition-colors hover:bg-primary/50" />
 
-            <ResizablePanel defaultSize={50} className="">
-              <ResizablePanelGroup direction="vertical" className="h-full">
-                {selectedFile === null && (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="flex">
-                      <img src={selectToStart} className="w-[17rem]" />
-                    </div>
-                  </div>
-                )}
-                {selectedFile !== null && (
-                  <div
-                    className={`h-[3rem] border-b-1 border-gray-700 flex items-center justify-center gap-2 w-full `}
+            {/* Main Workspace: Editor & Terminal */}
+            <ResizablePanel defaultSize={64} className="flex flex-col bg-background relative">
+               <AnimatePresence mode="wait">
+                {selectedFile === null ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.02 }}
+                    className="flex-1 flex flex-col items-center justify-center space-y-6 opacity-20 select-none"
                   >
-                    <div
-                      className={`flex items-center gap-2 cursor-pointer bg-[#1E1E1E] px-3 py-1 rounded-[0.3rem] hover:bg-[#323232] ${
-                        isCodeRunning ? "bg-neutral-800 pointer-events-none" : ""
-                      }`}
-                      onClick={async () => {
-                        const code = editorRef.current.getValue();
-                        setIsCodeRunning(true);
-                        if (socketRef.current) {
-                           socketRef.current.emit("code_execute", { roomId: projectId });
-                        }
-                        try {
-                          const response = await axios.post(
-                            BACKEND_URL + "/project/run-code",
-                            {
-                              code: code,
-                              language: languageName[projectDetails.language],
-                            },
-                            { withCredentials: true }
-                          );
-                          const data = response.data.data;
-
-                          if (data.run.stderr !== "") {
-                            const err = cleanError(data.run.stderr);
-                            setIsError(true);
-                            setCodeOutput(
-                              `Error on line ${err.line}: ${err.message}`
-                            );
-                          } else {
-                            setIsError(false);
-                            setCodeOutput(data.run.output);
-                          }
-                        } catch (e) {
-                          console.log(e);
-                          if (e.response.status === 401) navigate("/");
-                        }
-                        setIsCodeRunning(false);
-                      }}
-                    >
-                      <Play
-                        className={`fill-[#4E29A4] stroke-[#4E29A4] mt-[0.1rem] ${
-                          isCodeRunning ? "fill-neutral-600 stroke-neutral-600" : ""
-                        }`}
-                      />
-                      <p className="font-bold text-[#dad9d9]">
-                        {isCodeRunning ? "Running..." : "Run Code"}
-                      </p>
+                    <div className="w-32 h-32 bg-accent/20 rounded-[2.5rem] flex items-center justify-center rotate-12 relative overflow-hidden">
+                       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent" />
+                       <Code2 className="w-16 h-16 stroke-[1.5px] text-primary" />
                     </div>
-                    {/* <div className="flex cursor-pointer bg-[#1E1E1E] py-[0.45rem] rounded-[0.3rem] px-3">
-                      <Dialog>
-                        <DialogTrigger>
-                          <Settings
-                            className="stroke-[#848383] mt-[0.15rem] hover:stroke-white duration-300 cursor-pointer"
-                            size={18}
-                          />
-                        </DialogTrigger>
-                        <DialogContent className="bg-[#0C0E15] text-white border-1 border-[#1C1D24]">
-                          <DialogHeader>
-                            <DialogTitle>Editor Settings</DialogTitle>
-                            <DialogDescription>
-                              Choose your settings for the IDE
-                            </DialogDescription>
-                          </DialogHeader>
-                        </DialogContent>
-                      </Dialog>
-                    </div> */}
-                  </div>
-                )}
-                <ResizablePanel defaultSize={75} className="flex flex-col">
-                  {
-                    <MonacoEditor
-                      height="90vh"
-                      language={languageName[projectDetails.language]}
-                      theme="vs-dark"
-                      onChange={async (e) => {}}
-                      onMount={(editor, monaco) => {
-                        monacoRef.current = monaco;
-                        const ydoc = new Y.Doc();
-                        const provider = new WebsocketProvider(
-                          import.meta.env.VITE_YWS_URL,
-                          `${projectId}:${selectedFile}`,
-                          ydoc
-                        );
-                        provider.awareness.on("change", () => {
-                          const states = Array.from(
-                            provider.awareness.getStates().values()
-                          );
-
-                          states.forEach((state) => {
-                            if (!state.user) return;
-
-                            console.log(
-                              state.user.name,
-                              state.user.color,
-                              state.cursor
-                            );
-                          });
-                        });
-
-                        provider.awareness.setLocalStateField("user", {
-                          name: "Ayantik",
-                          color: "#ff4d4f",
-                        });
-
-                        const type = ydoc.getText("monaco");
-                        const binding = new MonacoBinding(
-                          type,
-                          editor.getModel(),
-                          new Set([editor]),
-                          provider.awareness
-                        );
-
-                        yRef.current = { ydoc, provider, type, binding };
-
-                        editor.updateOptions({
-                          mouseWheelZoom: true,
-                          automaticLayout: true,
-                          quickSuggestions: true,
-                          suggestOnTriggerCharacters: true,
-                          acceptSuggestionOnEnter: "on",
-                          wordBasedSuggestions: "currentDocument",
-                          snippetSuggestions: "inline",
-                          fontSize: 16,
-                          tabSize: 4,
-                        });
-                        editor.setValue(editorValue);
-                        editorRef.current = editor;
-                        setYjsInstances({ provider, ydoc, editor });
-
-                        editor.onKeyUp(async (e) => {
-                          const code = editor.getValue();
-                          const fileName = selectedFileRef.current;
-                          try {
-                            // Emit code change to backend to track linesWritten
-                            if (socketRef.current) {
-                               socketRef.current.emit("code_change", { roomId: projectId, linesDelta: 1 }); // Approx 1 change event
-                            }
-
-                            const res = await axios.post(
-                              BACKEND_URL + "/project/save-file",
-                              {
-                                code: code,
-                                projectId: projectId,
-                                fileName: fileName,
-                              },
-                              { withCredentials: true }
-                            );
-                            // const files = res.data.files;
-                            // // setProjectDetails({
-                            //   ...projectDetails,
-                            //   files: files,
-                            // });
-                          } catch (e) {
-                            console.log(e);
-                            if (e.response.status === 401) navigate("/");
-                          }
-                        });
-                      }}
-                    />
-                  }
-                  <div className="h-[24px] bg-gray-800 flex items-center px-4 text-xs text-gray-300 gap-4 border-t border-gray-700 w-full shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#E27311]"></span>
-                      <span className="capitalize">{languageName[projectDetails.language] || "Text"}</span>
+                    <div className="text-center space-y-2">
+                       <h3 className="text-lg font-bold tracking-tighter uppercase italic tracking-widest">Select a resource to begin</h3>
+                       <p className="text-[11px] font-medium tracking-widest opacity-60 uppercase">The workspace is ready for your input</p>
                     </div>
-                    <span className="text-gray-500">|</span>
-                    <div className="flex items-center gap-1">
-                      <span>👥 {onlineUsers} online</span>
-                    </div>
-                    <span className="text-gray-500">|</span>
-                    <div className="flex items-center gap-2">
-                      {(roomState === "Active" || roomState === "Waiting") ? (
-                        <><span className="w-2 h-2 rounded-full bg-green-500"></span> Synced</>
-                      ) : (
-                        <><span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span> Syncing...</>
-                      )}
-                    </div>
-                  </div>
-                </ResizablePanel>
-
-                <ResizableHandle className="bg-[#1C1D24]" />
-
-                <ResizablePanel
-                  defaultSize={25}
-                  className="max-h-[30rem] min-h-[1rem] flex justify-center"
-                >
-                  {codeOutput === "Run the code to see the output" && (
-                    <div className="mt-[3.5rem] bg-[#323131] h-[2.2rem] px-4 py-1 rounded-[0.3rem] font-bold text-[#8a8989]">
-                      {codeOutput}
-                    </div>
-                  )}
-                  {codeOutput !== "Run the code to see the output" && (
-                    <div className="text-white bg-whit w-full px-4 py-2 flex flex-col">
-                      <div className="bg-[#3a3939] px-2 py-1 rounded-[0.3rem] font-semibold flex justify-between">
-                        <p>OUTPUT</p>
-                        {isError && (
-                          <Dialog
-                            onOpenChange={(e) => {
-                              if (e) {
-                                setAiExplaination("");
-                              }
-                            }}
-                          >
-                            <DialogTrigger>
-                              <button
-                                className="flex items-center gap-1 text-[0.9rem] text-[#b393fd] cursor-pointer mr-3"
-                                onClick={async () => {
-                                  const wrongCode =
-                                    editorRef.current.getValue();
-                                  try {
-                                    const res = await axios.post(
-                                      BACKEND_URL + "/project/ai-explain",
-                                      {
-                                        code: wrongCode,
-                                        language:
-                                          languageName[projectDetails.language],
-                                      },
-                                      { withCredentials: true }
-                                    );
-                                    const errorAnalysis = res.data.msg;
-                                    setAiExplaination(errorAnalysis);
-                                  } catch (e) {
-                                    console.log(e);
-                                  }
-                                }}
-                              >
-                                <WandSparkles size={17} />
-                                AI EXPLAIN
-                              </button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-[#0C0E15] text-neutral-400 border-1 border-[#1C1D24]">
-                              <DialogHeader>
-                                <DialogTitle className="text-white">
-                                  AI Analysis of the Error
-                                </DialogTitle>
-                              </DialogHeader>
-                              {aiExplaination === "" ? "Analyzing..." : ""}
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {aiExplaination}
-                              </ReactMarkdown>
-                            </DialogContent>
-                          </Dialog>
-                        )}
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex-1 flex flex-col overflow-hidden"
+                  >
+                    {/* Editor Header / Tab Bar */}
+                    <div className="h-10 border-b border-white/5 bg-sidebar/20 backdrop-blur-sm flex items-center px-1">
+                      <div className="flex items-center gap-0.5 overflow-x-auto h-full scrollbar-none">
+                        <div className="h-8 px-4 bg-background border-x border-white/5 border-t-2 border-t-primary rounded-t-md flex items-center gap-2.5 text-[11px] font-semibold">
+                          <FileCode className="w-3.5 h-3.5 text-primary" />
+                          {selectedFile}
+                          <button className="p-0.5 rounded-sm hover:bg-white/10 opacity-60 hover:opacity-100 transition-all">
+                            <X size={12} />
+                          </button>
+                        </div>
                       </div>
-                      <pre
-                        className={`mt-2 ml-1 ${
-                          isError ? "text-red-600" : "text-white"
-                        }`}
-                      >
-                        {codeOutput}
-                      </pre>
+                      
+                      <div className="ml-auto flex items-center gap-2 pr-3">
+                         <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                onClick={handleRunCode}
+                                disabled={isCodeRunning}
+                                className={`h-7 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shadow-xl ${
+                                  isCodeRunning 
+                                  ? "bg-muted text-muted-foreground animate-pulse" 
+                                  : "bg-primary text-primary-foreground hover:scale-[1.03] active:scale-95 shadow-primary/20"
+                                }`}
+                              >
+                                {isCodeRunning ? (
+                                  <motion.div initial={{ rotate: 0 }} animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                                    <History className="w-3.5 h-3.5" />
+                                  </motion.div>
+                                ) : (
+                                  <><Play className="w-3 h-3 mr-1.5 fill-current" /> Execute</>
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Run current file (Ctrl + Enter)</TooltipContent>
+                         </Tooltip>
+                         <Button variant="ghost" size="icon" className="w-7 h-7 rounded-lg hover:bg-white/5">
+                           <Layout className="w-3.5 h-3.5 text-muted-foreground" />
+                         </Button>
+                      </div>
                     </div>
-                  )}
-                </ResizablePanel>
-              </ResizablePanelGroup>
+
+                    <ResizablePanelGroup direction="vertical">
+                      <ResizablePanel defaultSize={75} minSize={20}>
+                        <div className="w-full h-full relative group">
+                          <MonacoEditor
+                            height="100%"
+                            language={currentLanguageName}
+                            theme="vs-dark"
+                            onMount={(editor, monaco) => {
+                              monacoRef.current = monaco;
+                              const ydoc = new Y.Doc();
+                              const provider = new WebsocketProvider(
+                                YWS_URL,
+                                `${projectId}:${selectedFile}`,
+                                ydoc
+                              );
+                              
+                              provider.awareness.setLocalStateField("user", {
+                                name: user || "Local User",
+                                color: "#65A3F7",
+                              });
+
+                              const type = ydoc.getText("monaco");
+                              const model = editor.getModel();
+                              new MonacoBinding(
+                                type,
+                                model as monaco.editor.ITextModel,
+                                new Set([editor]),
+                                provider.awareness
+                              );
+
+                              yRef.current = { ydoc, provider, type, binding: null };
+
+                              editor.updateOptions({
+                                mouseWheelZoom: true,
+                                automaticLayout: true,
+                                fontSize: 14,
+                                fontFamily: "'Geist Mono', 'Fira Code', monospace",
+                                fontLigatures: true,
+                                lineNumbers: "on",
+                                minimap: { enabled: true, opacity: 0.5, scale: 0.75 },
+                                scrollBeyondLastLine: true,
+                                padding: { top: 16, bottom: 16 },
+                                cursorSmoothCaretAnimation: "on",
+                                cursorBlinking: "smooth",
+                                smoothScrolling: true,
+                                renderLineHighlight: "all",
+                                scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+                              });
+                              
+                              editor.setValue(editorValue);
+                              editorRef.current = editor;
+                              setYjsInstances({ provider, ydoc, editor });
+
+                              editor.onKeyUp(async () => {
+                                const code = editor.getValue();
+                                const fileName = selectedFileRef.current;
+                                if (!fileName) return;
+                                try {
+                                  if (socketRef.current) {
+                                    socketRef.current.emit(SOCKET_EVENTS.codeChange, {
+                                      roomId: projectId,
+                                      linesDelta: 1,
+                                    });
+                                  }
+                                  await legacyProjects.saveFile(projectId, fileName, code);
+                                } catch (err) {
+                                  console.error("Auto-save failed");
+                                }
+                              });
+                            }}
+                          />
+                          <div className="absolute bottom-4 right-6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <div className="px-3 py-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                               <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 italic">Live Collaborative Session</span>
+                            </div>
+                          </div>
+                        </div>
+                      </ResizablePanel>
+
+                      <ResizableHandle className="h-[1px] bg-white/5 hover:bg-primary/30" />
+
+                      {/* Terminal Output Panel */}
+                      <ResizablePanel defaultSize={25} minSize={5} className="bg-[#0A0A0A] flex flex-col">
+                        <div className="h-8 flex items-center justify-between px-4 border-b border-white/5 bg-sidebar/10">
+                          <div className="flex items-center gap-2">
+                            <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">Terminal Output</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             {isError && (
+                               <Dialog onOpenChange={(e) => e && setAiExplaination("")}>
+                                <DialogTrigger asChild>
+                                  <button
+                                    onClick={async () => {
+                                      const wrongCode = editorRef.current?.getValue() ?? "";
+                                      try {
+                                        const res = await legacyProjects.aiExplain(
+                                          wrongCode,
+                                          currentLanguage
+                                        );
+                                        setAiExplaination(res.msg);
+                                      } catch (e) {
+                                        toast.error("AI Analysis failed");
+                                      }
+                                    }}
+                                    className="flex items-center gap-1.5 text-[9px] font-bold text-primary hover:bg-primary/10 px-2 py-0.5 rounded-md transition-colors"
+                                  >
+                                    <Sparkles size={11} />
+                                    AI ANALYSIS
+                                  </button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-popover border border-white/10 text-foreground max-w-lg max-h-[80vh] overflow-hidden flex flex-col rounded-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2 uppercase tracking-widest text-sm font-black italic">
+                                      <Sparkles className="w-4 h-4 text-primary" />
+                                      AI Error Intelligence
+                                    </DialogTitle>
+                                  </DialogHeader>
+                                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar py-4 text-xs leading-relaxed">
+                                    {aiExplaination === "" ? (
+                                      <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                        <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        <p className="font-bold tracking-widest opacity-50 uppercase text-[10px]">Processing Contextual Intelligence...</p>
+                                      </div>
+                                    ) : (
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-invert prose-xs max-w-none prose-p:mb-2 prose-code:text-primary">
+                                        {aiExplaination}
+                                      </ReactMarkdown>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                             )}
+                            <button onClick={() => setCodeOutput("Run code to see output...")} className="text-muted-foreground hover:text-foreground">
+                               <X size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex-1 p-4 font-mono text-xs overflow-y-auto selection:bg-primary/20 custom-scrollbar">
+                           <pre className={`${isError ? "text-red-400" : "text-emerald-400/90"} leading-relaxed whitespace-pre-wrap`}>
+                             {codeOutput}
+                           </pre>
+                        </div>
+                      </ResizablePanel>
+                    </ResizablePanelGroup>
+                  </motion.div>
+                )}
+               </AnimatePresence>
+               <StatusBar language={currentLanguageName} roomState={roomState} onlineCount={onlineUsers} />
             </ResizablePanel>
 
-            {socketConnection && user && (
-              <>
-                <ResizableHandle className="bg-[#1C1D24] w-1" />
-                <ResizablePanel defaultSize={20} className="flex min-w-[20rem] max-w-[25rem] flex-col overflow-hidden p-2">
-                  <VideoConferencePanel
-                    roomId={projectId}
-                    socket={socketConnection}
-                    userId={user}
-                    userName={user}
-                  />
-                </ResizablePanel>
-              </>
-            )}
-          </ResizablePanelGroup>
-        </div>
+            <ResizableHandle className="w-[1px] bg-white/5 hover:bg-primary/30" />
 
-        <MainFooter />
+            {/* Sidebar Right: Collaboration Panel */}
+            <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-sidebar/20 backdrop-blur-sm flex flex-col">
+              <div className="h-full flex flex-col">
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Conference</span>
+                   </div>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  {socketConnection && user ? (
+                    <VideoConferencePanel
+                      roomId={projectId}
+                      socket={socketConnection}
+                      userId={user}
+                      userName={user}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-center px-8 opacity-20">
+                      <div className="space-y-4">
+                        <Layout className="w-12 h-12 mx-auto stroke-1" />
+                        <p className="text-[10px] font-bold uppercase tracking-widest leading-loose">Establishing connection to signaling backbone...</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </main>
       </div>
-    );
+    </div>
+    </TooltipProvider>
+  );
 }
 
 export default Editor;

@@ -1,0 +1,26 @@
+{
+  "name": "codecollab",
+  "version": "1.0.0",
+  "description": "CodeCollab - Real-Time Collaborative Code Editor with Video Conferencing",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:yjs\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm start",
+    "dev:yjs": "cd yjs-server && npm start",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../yjs-server && npm install",
+    "setup": "npm run install:all && echo 'Setup complete! Run npm run dev to start all services.'",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "collaborative",
+    "code-editor",
+    "webrtc",
+    "video-conferencing",
+    "real-time"
+  ],
+  "author": "CodeCollab Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

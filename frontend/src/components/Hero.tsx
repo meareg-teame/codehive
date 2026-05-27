@@ -1,124 +1,163 @@
 import HeroNavbar from "./HeroNavbar.tsx";
-import heroEditor from "../assets/heroEditor.png";
 import { Badge } from "@/components/ui/badge";
 import {
   CloudUpload,
   Code,
-  MessageCircle,
   Radio,
   UsersRound,
+  Zap,
+  Cpu,
+  Layers
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MagicCard } from "./ui/magic-card.tsx";
+import { motion } from "framer-motion";
+import { legacyAuth } from "@/api";
 
 function Hero() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios
-      .post(BACKEND_URL + "/auth/user", {}, { withCredentials: true })
+    legacyAuth
+      .checkSession()
       .then(() => {
         navigate("/dashboard");
       })
-      .catch(() => {
-        // navigate("/");
-      });
-  }, [BACKEND_URL, navigate]);
+      .catch(() => {});
+  }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-[#0F0F10] flex flex-col gap-5 [@media(max-width:1449px)]:items-center bg-[url('../../grid.svg')]">
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none -mt-48" />
+      
       <HeroNavbar />
 
-      <div className="flex flex-wrap px-[18rem [@media(max-width:786px)]:px-2 [@media(max-width:786px)]:px-2 justify-center items-center py-[2rem]">
-        <div className="flex flex-col gap-6 [@media(max-width:1449px)]:items-center">
-          <div className="ml-1 mb-[-1rem] flex gap-2 self-center">
-            <Badge variant="secondary" className="bg-[#262626] text-white">
-              Built for teams
-            </Badge>
-            <Badge variant="secondary" className="bg-[#262626] text-white">
-              classrooms
-            </Badge>
-            <Badge variant="secondary" className="bg-[#262626] text-white">
-              hack nights
-            </Badge>
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-24 relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center text-center space-y-10 max-w-4xl"
+        >
+          <div className="flex flex-wrap justify-center gap-3">
+            {["Teams", "Classrooms", "Hackathons"].map((text, i) => (
+              <Badge key={i} variant="outline" className="bg-white/5 border-white/10 px-4 py-1.5 rounded-full text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground shadow-xl">
+                {text}
+              </Badge>
+            ))}
           </div>
-          <p className="text-[#e0e0e0] text-[3rem] font-bold text-center [@media(max-width:785px)]:text-[3rem] mt-3">
-            Stop screen-sharing. <br />
-            Start coding together.
-          </p>
-          <p className="text-neutral-400 text-[1.3rem] ml-1 text-center">
-            Real-time collaboration, shared cursors, <br /> cloud saves, and
-            one-click runs - no setup.
-          </p>
-          <div className="flex gap-4 text-[0.9rem] text-white self-center">
-            {/* <button className="bg-[#15151a] border-2 border-[#1E1F20] px-4 py-2 rounded-[0.6rem] cursor-pointer">
-              Try Demo
-            </button> */}
-            <Link to="/auth">
-              <button className="bg-[#512fa2] px-4 py-2 rounded-[0.6rem] font-semibold cursor-pointer duration-300 hover:bg-[#4c2c96]">
-                <p className="flex items-center gap-1">
-                  <Code />
-                  Start Coding
-                </p>
-              </button>
-            </Link>
-          </div>
-        </div>
-        {/* <img
-          src={heroEditor}
-          className="w-[27rem] [@media(max-width:1449px)]:hidden"
-        /> */}
-      </div>
 
-      <div className="flex flex-wrap gap-5 px-[13rem] [@media(max-width:948px)]:px-2 mt-[1.5rem] items-center justify-center mb-5">
-        <div className="w-[14rem] h-[10rem] bg-[#151518] border-1 border-gray-800 rounded-[0.7rem] p-5 flex flex-col gap-[1rem] hover:scale-[1.02] duration-300 animate-shine" >
-          <h1 className="flex text-white items-center gap-2 text-[1.3rem] font-semibold">
-            <Radio size={30} className="text-[#6c41d0]" />
-            Real Time
-          </h1>
-          <p className="text-[#7A7B7D]">
-            Code together with your team in real-time
-          </p>
+          <div className="space-y-6">
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] uppercase italic">
+              Stop <span className="text-muted-foreground/30">Streaming</span>. <br />
+              Start <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Merging</span>.
+            </h1>
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
+              The high-fidelity collaborative engine for the next generation of developers. 
+              Real-time sync, shared runtimes, and neural-fast feedback.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <Link to="/auth">
+              <Button size="lg" className="h-16 px-10 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-sm hover:scale-[1.05] active:scale-95 transition-all shadow-2xl shadow-primary/30 group">
+                <Code className="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform" />
+                Initialize Environment
+              </Button>
+            </Link>
+            <Button variant="ghost" size="lg" className="h-16 px-8 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest transition-all">
+              Explore Protocol
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Feature Grid */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 max-w-6xl w-full"
+        >
+          {[
+            { 
+              icon: Radio, 
+              title: "Neural Sync", 
+              desc: "Sub-millisecond state replication across global clusters.",
+              color: "text-emerald-400"
+            },
+            { 
+              icon: UsersRound, 
+              title: "Shared Context", 
+              desc: "Universal cursors and environment state shared instantly.",
+              color: "text-primary"
+            },
+            { 
+              icon: CloudUpload, 
+              title: "Atomic Saves", 
+              desc: "Persistent cloud snapshots with zero-latency recovery.",
+              color: "text-amber-400"
+            }
+          ].map((feature, i) => (
+            <div 
+              key={i}
+              className="group p-8 rounded-[2.5rem] bg-sidebar/20 border border-white/5 hover:border-primary/20 transition-all duration-500 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative z-10 space-y-6">
+                <div className={`w-14 h-14 rounded-2xl bg-background border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-xl`}>
+                  <feature.icon className={`w-7 h-7 ${feature.color}`} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black uppercase italic tracking-tighter group-hover:text-primary transition-colors">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground font-medium leading-relaxed uppercase tracking-wider text-[10px]">{feature.desc}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Bottom Decorative Section */}
+        <div className="mt-40 w-full max-w-4xl opacity-20">
+           <div className="flex items-center justify-between gap-12 flex-wrap justify-center">
+              {[Zap, Cpu, Layers, Code, Radio].map((Icon, i) => (
+                <Icon key={i} className="w-8 h-8 grayscale hover:grayscale-0 transition-all cursor-crosshair" />
+              ))}
+           </div>
         </div>
-        <div className="w-[14rem] h-[10rem] bg-[#151518] border-1 border-gray-800 rounded-[0.7rem] p-5 flex flex-col gap-[1rem] hover:scale-[1.02] duration-300">
-          <h1 className="flex text-white items-center gap-2 text-[1.3rem] font-semibold">
-            <UsersRound size={30} className="text-[#6c41d0] fill-[#6c41d0]" />
-            Shared cursors
-          </h1>
-          <p className="text-[#7A7B7D]">
-            See where others are working in the editor
-          </p>
+      </main>
+
+      <footer className="py-12 border-t border-white/5 flex flex-col items-center gap-6 opacity-40">
+        <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.3em] italic">
+           <span>Infrastructure</span>
+           <span>Protocols</span>
+           <span>Privacy</span>
         </div>
-        {/* <div className="w-[14rem] h-[10rem] bg-[#151518] border-1 border-gray-800 rounded-[0.7rem] p-5 flex flex-col gap-[1rem] hover:scale-[1.02] duration-300">
-          <h1 className="flex text-white items-center gap-2 text-[1.3rem] font-semibold">
-            <MessageCircle
-              size={30}
-              className="text-[#6c41d0] fill-[rgb(108,65,208)]"
-            />
-            Live Chat
-          </h1>
-          <p className="text-[#7A7B7D]">
-            Chat with your collaborators instantly
-          </p>
-        </div> */}
-        <div className="w-[14rem] h-[10rem] bg-[#151518] border-1 border-gray-800 rounded-[0.7rem] p-5 flex flex-col gap-[1rem] hover:scale-[1.02] duration-300">
-          <h1 className="flex text-white items-center gap-2 text-[1.3rem] font-semibold">
-            <CloudUpload
-              size={30}
-              className="text-[#6c41d0] fill-[rgb(108,65,208)]"
-            />
-            Cloud Saves
-          </h1>
-          <p className="text-[#7A7B7D]">
-            Automatically save and sync your work
-          </p>
-        </div>
-      </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest tracking-[0.2em]">© 2026 CodeHive Collaborative Systems</p>
+      </footer>
     </div>
+  );
+}
+
+// Internal Button component for clean code if not imported
+function Button({ className, children, variant = "default", size = "default", ...props }: any) {
+  const variants: any = {
+    default: "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline: "border border-white/10 bg-transparent hover:bg-white/5",
+    ghost: "bg-transparent hover:bg-white/5",
+  };
+  const sizes: any = {
+    default: "h-10 px-4 py-2",
+    lg: "h-12 px-8 text-lg",
+  };
+  return (
+    <button 
+      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`} 
+      {...props}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -1,7 +1,7 @@
-import { Bell, Menu } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import { Menu, Command, ChevronRight, LogOut, Key, Settings, User } from "lucide-react";
+import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,12 +11,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import axios from "axios";
+import { useAuth } from "@/app/providers/AuthProvider";
+import { getErrorMessage } from "@/api";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -24,191 +24,204 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 
 function MainNavbar() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
-  const [userData, setUserData] = useState({});
+  const location = useLocation();
+  const { user, logout, changePassword } = useAuth();
+  const userData = user ?? {
+    name: "Local User",
+    email: "local@codehive.dev",
+    photoUrl: "",
+  };
 
-  useEffect(() => {
-    try {
-      axios
-        .post(BACKEND_URL + "/auth/user-info", {}, { withCredentials: true })
-        .then((res) => {
-          setUserData(res.data.userData);
-        });
-    } catch (e) {
-      console.log(e);
-    }
-  }, [BACKEND_URL]);
+  const displayName = userData?.name?.trim() || "Local User";
+  const displayEmail = userData?.email?.trim() || "local@codehive.dev";
+  const nameParts = displayName.split(/\s+/).filter(Boolean);
+  const displayInitials =
+    nameParts.length === 1
+      ? `${nameParts[0][0] || "L"}${nameParts[0][1] || nameParts[0][0] || "U"}`
+      : `${nameParts[0]?.[0] || "L"}${nameParts[nameParts.length - 1]?.[0] || "U"}`;
+
+  const navLinks = [
+    { name: "Dashboard", path: "/dashboard" },
+    { name: "Access Management", path: "/access-management" },
+    { name: "Shared with Me", path: "/shared-with-me" },
+  ];
+
+  const currentPathName = navLinks.find(link => link.path === location.pathname)?.name || "";
 
   return (
-    <div className="h-[4rem] border-b-1 border-[#1C1D24] flex gap-5 items-center justify-between sticky top-0 bg-[#0F0F10]">
+    <nav className="h-12 border-b border-white/5 flex items-center justify-between px-4 sticky top-0 bg-background/80 backdrop-blur-md z-50">
       <Toaster
         position="bottom-center"
         toastOptions={{
           style: {
-            background: "#0f0f10",
-            color: "white",
-            border: "3px solid #512FA2",
+            background: "var(--popover)",
+            color: "var(--foreground)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
           },
         }}
       />
 
-      <div className="flex gap-7 text-[#B6BBC8] ml-[2rem] [@media(max-width:502px)]:hidden">
-        <div className="hover:text-white duration-300 cursor-pointer">
-          <Link to="/dashboard">Dashboard</Link>
-        </div>
-        <Link to="/access-management">
-          <div className="hover:text-white duration-300 cursor-pointer">
-            Access Management
+      <div className="flex items-center gap-6">
+        <Link to="/dashboard" className="flex items-center gap-2 group">
+          <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+            <Command className="w-4 h-4 text-primary-foreground" />
           </div>
+          <span className="font-bold text-sm tracking-tight hidden sm:block">CodeHive</span>
         </Link>
 
-        <Link to="/shared-with-me">
-          <div className="hover:text-white duration-300 cursor-pointer">
-            Shared with Me
+        {currentPathName && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">{currentPathName}</span>
           </div>
-        </Link>
+        )}
+
+        <div className="hidden md:flex items-center gap-1 ml-4">
+          {navLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
+                location.pathname === link.path
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              }`}
+            >
+              {link.name}
+            </Link>
+          ))}
+        </div>
       </div>
-      <div className="[@media(min-width:503px)]:hidden mr-auto">
-        <Sheet>
-          <SheetTrigger>
-            <button className="cursor-pointer">
-              <Menu className="text-[#B6BBC8] ml-[1rem] cursor-pointer" />
-            </button>
-          </SheetTrigger>
-          <SheetContent
-            className="bg-[#0F0F10] border-0 text-[#C0C0C2] flex flex-col gap-5 items-center justify-center"
-            side="left"
-          >
-            <Link to="/dashboard">
-              <div className="hover:white duration-300 cursor-pointer">
-                Dashboard
+
+      <div className="flex items-center gap-3">
+        <div className="md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Menu className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="left"
+              className="bg-background border-r border-white/5 w-[240px]"
+            >
+              <div className="flex flex-col gap-4 mt-8">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className="text-sm font-medium hover:text-primary transition-colors px-2 py-1"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
               </div>
-            </Link>
-            <Link to="/access-management">
-              <div className="hover:white duration-300 cursor-pointer">
-                Access Management
-              </div>
-            </Link>
-            <Link to="/shared-with-me">
-              <div className="hover:white duration-300 cursor-pointer">
-                Shared with Me
-              </div>
-            </Link>
-          </SheetContent>
-        </Sheet>
-      </div>
-      <div className="flex gap-4 mr-[2rem] items-center">
+            </SheetContent>
+          </Sheet>
+        </div>
+
         <DropdownMenu>
-          <DropdownMenuTrigger className="outline-none">
-            <Avatar className="h-8 w-8 cursor-pointer font-semibold">
-              <AvatarImage src={userData.photoUrl} alt="@shadcn" />
-              <AvatarFallback>
-                {userData?.name?.split(" ")[0][0] +
-                  userData?.name?.split(" ")[
-                    userData?.name?.split(" ").length - 1
-                  ][0]}
-              </AvatarFallback>
-            </Avatar>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0 overflow-hidden border border-white/10 hover:border-white/20 transition-colors">
+              <Avatar className="h-full w-full">
+                <AvatarImage src={userData.photoUrl} />
+                <AvatarFallback className="text-[10px] bg-accent">{displayInitials}</AvatarFallback>
+              </Avatar>
+            </Button>
           </DropdownMenuTrigger>
 
           <DropdownMenuContent
             align="end"
             sideOffset={8}
-            className="bg-[#0f0f14] border border-white/10 w-fit min-w-[13rem]"
+            className="w-56 bg-popover border border-white/5 shadow-2xl rounded-xl p-1"
           >
-            <DropdownMenuLabel className="text-gray-300">
-              Signed in as
-              <br />
-              <span className="font-semibold text-gray-400">
-                {userData?.email?.split(" ")[0]}
-              </span>
-            </DropdownMenuLabel>
-
-            <DropdownMenuSeparator className="bg-[#2a2b34]" />
+            <div className="px-3 py-2">
+              <p className="text-sm font-medium text-foreground">{displayName}</p>
+              <p className="text-[11px] text-muted-foreground truncate">{displayEmail}</p>
+            </div>
+            
+            <DropdownMenuSeparator className="bg-white/5" />
+            
+            <DropdownMenuItem className="flex items-center gap-2 text-xs py-2 px-3 rounded-lg focus:bg-accent">
+              <User className="w-3.5 h-3.5" />
+              Profile Settings
+            </DropdownMenuItem>
 
             <Dialog>
-              <DialogTrigger>
-                <div className="cursor-pointer text-white w-full duration-300 ml-1 text-[0.88rem]">
+              <DialogTrigger asChild>
+                <div className="relative flex cursor-default select-none items-center gap-2 rounded-lg px-3 py-2 text-xs outline-none transition-colors hover:bg-accent focus:bg-accent focus:text-accent-foreground">
+                  <Key className="w-3.5 h-3.5" />
                   Change Password
                 </div>
               </DialogTrigger>
-              <DialogContent className="w-full bg-[#0C0E15] border-1 border-[#1C1D24] text-white">
+              <DialogContent className="bg-popover border border-white/5 text-foreground max-w-sm rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle>Change Account Password</DialogTitle>
-                  <DialogDescription>
-                    First enter your old password and then your new password
+                  <DialogTitle>Update Password</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Secure your account with a new password.
                   </DialogDescription>
                 </DialogHeader>
                 <form
-                  className="flex flex-col gap-3"
+                  className="space-y-4 mt-2"
                   onSubmit={async (e) => {
                     e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
                     try {
-                      await axios.post(BACKEND_URL + "/auth/change-password", {
-                        oldPassword: e.currentTarget[0].value,
-                        newPassword: e.currentTarget[1].value,
-                      },{withCredentials:true});
-                      toast("Password changed!");
-                    } catch (e) {
-                      toast(e.response.data.msg,{
-                        style:{
-                          border:"3px solid red"
-                        }
-                      });
-                      // toast(e)
+                      await changePassword(
+                        String(formData.get("oldPassword") || ""),
+                        String(formData.get("newPassword") || "")
+                      );
+                      toast.success("Password updated successfully");
+                    } catch (err) {
+                      toast.error(getErrorMessage(err, "Failed to update password"));
                     }
                   }}
                 >
-                  <label htmlFor="old-pass">Old Password</label>
-                  <Input
-                    id="old-pass"
-                    placeholder="Old Password"
-                    required={true}
-                  />
-                  <label htmlFor="new-pass">New Password</label>
-                  <Input
-                    id="new-pass"
-                    placeholder="New Password"
-                    required={true}
-                  />
-                  {/* <DialogClose asChild> */}
-                  <button
-                    type="submit"
-                    className="bg-[#4E29A4] py-1 font-semibold rounded-[0.4rem] cursor-pointer hover:bg-[#452592] duration-300 mt-2"
-                  >
-                    Change
-                  </button>
-                  {/* </DialogClose> */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground uppercase" htmlFor="oldPassword">Current Password</label>
+                    <Input id="oldPassword" name="oldPassword" type="password" className="bg-accent/30 border-white/5 h-9 text-sm" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground uppercase" htmlFor="newPassword">New Password</label>
+                    <Input id="newPassword" name="newPassword" type="password" className="bg-accent/30 border-white/5 h-9 text-sm" required />
+                  </div>
+                  <Button type="submit" className="w-full bg-primary text-primary-foreground font-semibold h-9 rounded-lg">
+                    Update Password
+                  </Button>
                 </form>
               </DialogContent>
             </Dialog>
 
-            <DropdownMenuSeparator className="bg-[#2a2b34]" />
+            <DropdownMenuItem className="flex items-center gap-2 text-xs py-2 px-3 rounded-lg focus:bg-accent">
+              <Settings className="w-3.5 h-3.5" />
+              Preferences
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="bg-white/5" />
 
             <DropdownMenuItem
-              className="text-red-400 cursor-pointer data-[highlighted]:bg-[#1C1D24] data-[highlighted]:text-red-300"
+              className="flex items-center gap-2 text-xs py-2 px-3 rounded-lg text-red-400 focus:bg-red-400/10 focus:text-red-400"
               onClick={async () => {
                 try {
-                  await axios.post(
-                    BACKEND_URL + "/auth/logout",
-                    {},
-                    { withCredentials: true }
-                  );
+                  await logout();
                   navigate("/");
                 } catch (e) {
-                  console.log(e);
+                  console.error(e);
                 }
               }}
             >
-              Logout
+              <LogOut className="w-3.5 h-3.5" />
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </nav>
   );
 }
 

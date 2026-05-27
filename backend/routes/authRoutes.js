@@ -7,7 +7,9 @@ import {
   logout,
   userInfo,
   changePassword,
-  googleOauth
+  googleOauth,
+  firebaseSignin,
+  guestLogin
 } from "../controllers/authControllers.js";
 const router = express.Router();
 
@@ -19,5 +21,7 @@ router.post("/user-info", userInfo);
 router.post("/verification/:id", emailVerification);
 router.post("/change-password", changePassword);
 router.post("/google-oauth", googleOauth);
+router.post("/firebase-signin", firebaseSignin);
+router.post("/guest-login", guestLogin);
 
 export default router;

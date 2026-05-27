@@ -1,82 +1,39 @@
-import { Code, Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Code } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { Button } from "./ui/button";
 
 function HeroNavbar() {
   const navigate = useNavigate();
   return (
-    <>
-      <div className="text-white flex bg-[bg-[#0F0F10]] py-3 px-5 border-b-1 border-[#18191A] justify-between items-center [@media(max-width:1449px)]:hidden sticky bg-[#0f0f10] top-0">
-        <Link to="/">
-          <div className="font-bold text-[1.4rem] cursor-pointer">CodeHive</div>
+    <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/60 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2 group">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/20 flex items-center justify-center group-hover:rotate-6 transition-transform">
+            <Code className="w-4 h-4 text-primary" />
+          </div>
+          <span className="font-black text-xl tracking-tighter uppercase italic text-foreground">CodeHive</span>
         </Link>
 
-        <div className="flex gap-8 text-[rgb(192,192,194)] ml-[9rem]">
-          {/* <Link to="/">
-            <div className="hover:white duration-300 cursor-pointer">
-              Product
-            </div>
-          </Link> */}
-          {/* <div className="cursor-pointer hover:text-white duration-300">
-            Classroom
-          </div> */}
-          {/* <div className="cursor-pointer hover:text-white duration-300">
-            Docs
-          </div> */}
-          {/* <div className="cursor-pointer hover:text-white duration-300">
-            Blog
-          </div> */}
+        <div className="hidden md:flex items-center gap-8">
+          <a href="#" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors italic">Documentation</a>
+          <a href="#" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors italic">Infrastructure</a>
+          <a href="#" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors italic">Protocols</a>
         </div>
-        {/* <div className="flex gap-4 text-[0.9rem] mr-[15rem]">
-          <button className="bg-[#15151a] border-2 border-[#1E1F20] px-4 py-2 rounded-[0.6rem] cursor-pointer">
-            Try Demo
-          </button>
-          <Link to="/auth">
-            <button className="bg-[#512fa2] px-4 py-2 rounded-[0.6rem] font-semibold cursor-pointer duration-300 hover:bg-[#4c2c96]">
-              <p className="flex items-center gap-1">
-                <Code />
-                Start Coding
-              </p>
-            </button>
-          </Link>
-        </div> */}
-      </div>
 
-      <div className="text-white flex bg-[bg-[#0F0F10]] py-3 px-5 border-b-1 border-[#18191A] justify-between items-center [@media(min-width:1449px)]:hidden w-full sticky bg-[#0f0f10] top-0">
-        <div
-          className="font-bold text-[1.4rem] cursor-pointer"
-          onClick={() => {
-            navigate("/");
-          }}
-        >
-          CodeHive
+        <div className="flex items-center gap-4">
+          <Link to="/auth">
+            <Button variant="ghost" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">
+              Login
+            </Button>
+          </Link>
+          <Link to="/auth">
+            <Button className="h-9 px-6 rounded-xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all">
+              Initialize
+            </Button>
+          </Link>
         </div>
-        {/* <Sheet>
-          <SheetTrigger>
-            <button className="cursor-pointer">
-              <Menu />
-            </button>
-          </SheetTrigger>
-          <SheetContent className="bg-[#0F0F10] border-0 text-[#C0C0C2] flex flex-col gap-5 items-center justify-center">
-            <Link to="/">
-              <div className="hover:white duration-300 cursor-pointer">
-                Product
-              </div>
-            </Link>
-            <div className="hover:white duration-300 cursor-pointer">
-              Classroom
-            </div>
-            <div className="hover:white duration-300 cursor-pointer">Docs</div>
-            <div className="hover:white duration-300 cursor-pointer">Blog</div>
-            <Link to="/auth">
-              <div className="hover:white duration-300 cursor-pointer text-[#683dce] font-semibold text-[1.1rem] hover:font-bold">
-                Start Coding
-              </div>
-            </Link>
-          </SheetContent>
-        </Sheet> */}
       </div>
-    </>
+    </nav>
   );
 }
 

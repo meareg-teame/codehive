@@ -2,14 +2,51 @@ import Project from "../models/Project.js";
 import Account from "../models/Account.js";
 import jwt from "jsonwebtoken";
 import axios from "axios";
+import { executeWithJudge0 } from "../services/judge0.js";
+import { Op } from "sequelize";
+
+const DEV_USER = "local@codehive.dev";
+const devProjects = new Map();
+
+function getCurrentUser(req) {
+  try {
+    return jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
+  } catch (e) {
+    return DEV_USER;
+  }
+}
+
+function buildDevProject({ projectName, language, visibility, owner }) {
+  const now = Date.now();
+  return {
+    _id: `dev-${now}-${Math.random().toString(36).slice(2, 8)}`,
+    name: projectName,
+    language,
+    visibility,
+    owner,
+    collaborators: [owner],
+    files: [],
+    accessRequests: [],
+    creationTime: now,
+    editedTime: now,
+  };
+}
+
 export async function createProject(req, res) {
   const { projectName, language, visibility } = req.body;
-  let user;
-  try {
-    user = jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
-  } catch (e) {
-    return res.status(404).json({});
+  const user = getCurrentUser(req);
+
+  if (user === DEV_USER) {
+    const project = buildDevProject({
+      projectName,
+      language,
+      visibility,
+      owner: user,
+    });
+    devProjects.set(project._id, project);
+    return res.status(200).json({ msg: "project created", project });
   }
+
   await Project.create({
     name: projectName,
     language: language,
@@ -22,19 +59,26 @@ export async function createProject(req, res) {
 }
 
 export async function getProjects(req, res) {
-  let user;
-  try {
-    user = jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
-  } catch (e) {
-    return res.status(404).json({});
+  const user = getCurrentUser(req);
+
+  if (user === DEV_USER) {
+    const projects = [...devProjects.values()].filter(
+      (project) => project.owner === user
+    );
+    return res.status(200).json({ projects });
   }
-  const projects = await Project.find({ owner: user });
+
+  const projects = await Project.findAll({ where: { owner: user } });
   return res.status(200).json({ projects: projects });
 }
 
 export async function deleteProject(req, res) {
   const projectId = req.body.id;
-  await Project.deleteOne({ _id: projectId });
+  if (String(projectId).startsWith("dev-")) {
+    devProjects.delete(projectId);
+    return res.status(200).json({ msg: "project deleted" });
+  }
+  await Project.destroy({ where: { _id: projectId } });
   
 
 
@@ -42,23 +86,52 @@ export async function deleteProject(req, res) {
 }
 
 export async function getProjectDetails(req, res) {
-  const user = await jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
+  const user = getCurrentUser(req);
   const projectId = req.body.id;
-  const projectDetails = await Project.findOne({ _id: projectId });
+
+  if (user === DEV_USER || String(projectId).startsWith("dev-")) {
+    const projectDetails = devProjects.get(projectId);
+    if (!projectDetails) {
+      return res.status(404).json({ msg: "project not found" });
+    }
+    return res.status(200).json({ projectDetails, user });
+  }
+
+  const projectDetails = await Project.findByPk(projectId);
   return res.status(200).json({ projectDetails: projectDetails, user: user });
 }
 
 export async function createFile(req, res) {
   const { projectId, fileName } = req.body;
+  if (String(projectId).startsWith("dev-")) {
+    const projectData = devProjects.get(projectId);
+    if (!projectData) {
+      return res.status(404).json({ msg: "project not found" });
+    }
+    projectData.files.push({
+      name: fileName,
+      content: "",
+    });
+    projectData.editedTime = Date.now();
+    devProjects.set(projectId, projectData);
+    const io = req.app.get("io");
+    io.emit("updated files", { projectDetails: projectData });
+    return res
+      .status(200)
+      .json({ msg: "new file created", projectDetails: projectData });
+  }
+
   // console.log(req.body);
-  let projectData = await Project.findOne({ _id: projectId });
+  let projectData = await Project.findByPk(projectId);
+  if (!projectData) {
+    return res.status(404).json({ msg: "project not found" });
+  }
   const files = projectData.files;
   files.push({
     name: fileName,
     content: "",
   });
-  await Project.updateOne({ _id: projectId }, { files: files });
-  projectData = await Project.findOne({ _id: projectId });
+  await projectData.update({ files });
   const io = req.app.get("io");
   io.emit("updated files", { projectDetails: projectData });
   res
@@ -68,7 +141,28 @@ export async function createFile(req, res) {
 
 export async function deleteFile(req, res) {
   const { id, fileName } = req.body;
-  let projectData = await Project.findOne({ _id: id });
+  if (String(id).startsWith("dev-")) {
+    const projectData = devProjects.get(id);
+    if (!projectData) {
+      return res.status(404).json({ msg: "project not found" });
+    }
+    projectData.files = projectData.files.filter((file) => file.name !== fileName);
+    projectData.editedTime = Date.now();
+    devProjects.set(id, projectData);
+    const io = req.app.get("io");
+    io.emit("updated files", {
+      projectDetails: projectData,
+      deletedFile: fileName,
+    });
+    return res
+      .status(200)
+      .json({ msg: "file deleted", projectDetails: projectData });
+  }
+
+  let projectData = await Project.findByPk(id);
+  if (!projectData) {
+    return res.status(404).json({ msg: "project not found" });
+  }
   let files = projectData.files;
   let newFiles = [];
   for (let file of files) {
@@ -76,8 +170,7 @@ export async function deleteFile(req, res) {
       newFiles.push(file);
     }
   }
-  await Project.updateOne({ _id: id }, { files: newFiles });
-  projectData = await Project.findOne({ _id: id });
+  await projectData.update({ files: newFiles });
   const io = req.app.get("io");
   io.emit("updated files", {
     projectDetails: projectData,
@@ -90,7 +183,30 @@ export async function deleteFile(req, res) {
 
 export async function renameFile(req, res) {
   const { projectId, newFileName, oldFileName } = req.body;
-  let projectData = await Project.findOne({ _id: projectId });
+  if (String(projectId).startsWith("dev-")) {
+    const projectData = devProjects.get(projectId);
+    if (!projectData) {
+      return res.status(404).json({ msg: "project not found" });
+    }
+    for (let file of projectData.files) {
+      if (file.name === oldFileName) {
+        file.name = newFileName;
+        break;
+      }
+    }
+    projectData.editedTime = Date.now();
+    devProjects.set(projectId, projectData);
+    const io = req.app.get("io");
+    io.emit("updated files", { projectDetails: projectData });
+    return res
+      .status(200)
+      .json({ msg: "file renamed", projectDetails: projectData });
+  }
+
+  let projectData = await Project.findByPk(projectId);
+  if (!projectData) {
+    return res.status(404).json({ msg: "project not found" });
+  }
   let files = projectData.files;
   for (let file of files) {
     if (file.name === oldFileName) {
@@ -98,8 +214,7 @@ export async function renameFile(req, res) {
       break;
     }
   }
-  await Project.updateOne({ _id: projectId }, { files: files });
-  projectData = await Project.findOne({ _id: projectId });
+  await projectData.update({ files });
   const io = req.app.get("io");
   io.emit("updated files", { projectDetails: projectData });
   return res
@@ -108,28 +223,63 @@ export async function renameFile(req, res) {
 }
 
 export async function runCode(req, res) {
-  const code = req.body.code;
+  const code = req.body.code || "";
   const language = req.body.language;
+  const stdin = req.body.stdin || "";
+
+  if (!language) {
+    return res.status(400).json({ msg: "Language is required." });
+  }
 
   try {
-    const response = await axios.post(
-      "https://emkc.org/api/v2/piston/execute",
-      {
-        language,
-        version: "*",
-        files: [{ content: code }],
-      }
-    );
+    const result = await executeWithJudge0({
+      language,
+      sourceCode: code,
+      stdin,
+    });
 
-    res.json({ data: response.data });
+    return res.status(200).json({
+      result: {
+        stdout: result.stdout || "",
+        stderr:
+          result.compile_output || result.stderr || result.message || "",
+        status: result.status?.description || "Finished",
+        time: result.time ?? null,
+        memory: result.memory ?? null,
+        judge0LanguageId: result.language_id ?? null,
+      },
+    });
   } catch (error) {
-    res.json({ output: "Error executing code" });
+    return res.status(error.statusCode || 503).json({
+      msg: error.message || "Error executing code.",
+    });
   }
 }
 
 export async function saveFile(req, res) {
   const { code, projectId, fileName } = req.body;
-  let projectData = await Project.findOne({ _id: projectId });
+  if (String(projectId).startsWith("dev-")) {
+    const projectData = devProjects.get(projectId);
+    if (!projectData) {
+      return res.status(404).json({ msg: "project not found" });
+    }
+    for (let file of projectData.files) {
+      if (file.name === fileName) {
+        file.content = code;
+        break;
+      }
+    }
+    projectData.editedTime = Date.now();
+    devProjects.set(projectId, projectData);
+    const io = req.app.get("io");
+    io.emit("updated files", { projectDetails: projectData, newContent: code });
+    return res.status(200).json({ msg: "file saved", files: [...projectData.files].reverse() });
+  }
+
+  let projectData = await Project.findByPk(projectId);
+  if (!projectData) {
+    return res.status(404).json({ msg: "project not found" });
+  }
   const files = projectData.files;
   for (let file of files) {
     if (file.name === fileName) {
@@ -137,8 +287,7 @@ export async function saveFile(req, res) {
       break;
     }
   }
-  await Project.updateOne({ _id: projectId }, { files: files });
-  projectData = await Project.findOne({ _id: projectId });
+  await projectData.update({ files });
   const io = req.app.get("io");
   io.emit("updated files", { projectDetails: projectData, newContent: code });
   return res.status(200).json({ msg: "file saved", files: files.reverse() });
@@ -197,9 +346,11 @@ Provide your answer in the above format only.
 export async function sharedWithMe(req, res) {
   const user = await jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
 
-  const userData=await Account.findOne({email:user});
-  const sharedProjectsId=userData.sharedWithMe;
-  const sharedProjectsData=await Project.find({_id:{$in:sharedProjectsId}});
+  const userData = await Account.findOne({ where: { email: user } });
+  const sharedProjectsId = userData?.sharedWithMe || [];
+  const sharedProjectsData = await Project.findAll({
+    where: { _id: { [Op.in]: sharedProjectsId } },
+  });
   
   return res.status(200).json({sharedProjects:sharedProjectsData});
 }
@@ -207,7 +358,10 @@ export async function sharedWithMe(req, res) {
 export async function removeAccess(req, res) {
   const {projectId}=req.body;
   const user = await jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
-  const projectData=await Project.findOne({_id:projectId});
+  const projectData = await Project.findByPk(projectId);
+  if (!projectData) {
+    return res.status(404).json({ msg: "project not found" });
+  }
   const collaborators=projectData.collaborators;
   const newCollaborators=[];
   for(let collaborator of collaborators){
@@ -215,7 +369,7 @@ export async function removeAccess(req, res) {
       newCollaborators.push(collaborator);
     }
   }
-  await Project.updateOne({_id:projectId},{collaborators:newCollaborators});
+  await projectData.update({ collaborators: newCollaborators });
 
   const accessRequests=projectData.accessRequests;
   const newAccessRequests=[];
@@ -224,9 +378,9 @@ export async function removeAccess(req, res) {
       newAccessRequests.push(request);
     } 
   }
-  await Project.updateOne({_id:projectId},{accessRequests:newAccessRequests});
+  await projectData.update({ accessRequests: newAccessRequests });
   
-  const userData=await Account.findOne({email:user});
+  const userData = await Account.findOne({ where: { email: user } });
   const sharedWithMe=userData.sharedWithMe;
   const newSharedWithMe=[];
   for(let sharedProject of sharedWithMe){
@@ -234,8 +388,10 @@ export async function removeAccess(req, res) {
       newSharedWithMe.push(sharedProject);
     }
   }
-  await Account.updateOne({email:user},{sharedWithMe:newSharedWithMe});
-  const sharedProjectsData=await Project.find({_id:{$in:newSharedWithMe}});
+  await Account.update({ sharedWithMe: newSharedWithMe }, { where: { email: user } });
+  const sharedProjectsData = await Project.findAll({
+    where: { _id: { [Op.in]: newSharedWithMe } },
+  });
 
 
 
@@ -244,11 +400,11 @@ export async function removeAccess(req, res) {
 
 export async function accessManagement(req, res) {
   const user = await jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
-  const userData=await Account.findOne({email:user});
+  const userData = await Account.findOne({ where: { email: user } });
   const accessManagementProjects=userData.accessManagementProjects;
   const newAccessManagementProjects=[];
   for(let project of accessManagementProjects){
-    const projectData=await Project.findOne({_id:project.projectId});
+    const projectData = await Project.findByPk(project.projectId);
     if(projectData==null) continue; 
     project.projectName=projectData?.name;
     newAccessManagementProjects.push(project);

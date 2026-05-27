@@ -1,22 +1,46 @@
-import mongoose from "mongoose";
+import { DataTypes } from 'sequelize';
+import { randomUUID } from 'node:crypto';
+import { sequelize } from '../config/db.js';
 
-const SessionSchema = new mongoose.Schema({
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: "Project" },
-  roomCode: { type: String, unique: true, index: true },
-  state: { 
-    type: String, 
-    enum: ["Initialized", "Waiting", "Active", "Synchronizing", "Terminated"],
-    default: "Initialized"
+const Session = sequelize.define('Session', {
+  _id: {
+    type: DataTypes.STRING,
+    primaryKey: true,
+    defaultValue: () => randomUUID(),
   },
-  participants: [{ 
-    userId: { type: String }, // Can be ObjectId or string if firebase UID
-    joinedAt: { type: Date }, 
-    leftAt: { type: Date } 
-  }],
-  linesWritten: { type: Number, default: 0 },
-  executionsRun: { type: Number, default: 0 },
-  startedAt: { type: Date },
-  endedAt: { type: Date }
+  projectId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  roomCode: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: false
+  },
+  state: {
+    type: DataTypes.ENUM("Initialized", "Waiting", "Active", "Synchronizing", "Terminated"),
+    defaultValue: "Initialized"
+  },
+  participants: {
+    type: DataTypes.JSONB,
+    defaultValue: []
+  },
+  linesWritten: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  executionsRun: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  startedAt: {
+    type: DataTypes.DATE
+  },
+  endedAt: {
+    type: DataTypes.DATE
+  }
+}, {
+  tableName: 'sessions',
 });
 
-export default mongoose.model("Session", SessionSchema);
+export default Session;

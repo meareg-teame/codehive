@@ -1,44 +1,59 @@
-import mongoose from "mongoose";
+import { DataTypes } from 'sequelize';
+import { randomUUID } from 'node:crypto';
+import { sequelize } from '../config/db.js';
 
-const schema = new mongoose.Schema({
+const Project = sequelize.define('Project', {
+  _id: {
+    type: DataTypes.STRING,
+    primaryKey: true,
+    defaultValue: () => randomUUID(),
+  },
   name: {
-    type: String,
-    default: "",
+    type: DataTypes.STRING,
+    defaultValue: ""
   },
-
   owner: {
-    type: String,
-    default: "",
+    type: DataTypes.STRING,
+    defaultValue: ""
   },
-
   language: {
-    type: String,
-    default: "",
+    type: DataTypes.STRING,
+    defaultValue: ""
   },
-
   visibility: {
-    type: String,
-    default: "public",
+    type: DataTypes.STRING,
+    defaultValue: "public"
   },
-
   collaborators: {
-    type: Array,
-    default: [],
+    type: DataTypes.JSONB,
+    defaultValue: []
   },
-
   files: {
-    type: Array,
-    default: [],
+    type: DataTypes.JSONB,
+    defaultValue: []
   },
-
-  creationTime: { type: Number, default: 0 },
-
-  editedTime: { type: Number, default: 0 },
-
+  creationTime: {
+    type: DataTypes.BIGINT,
+    defaultValue: 0
+  },
+  editedTime: {
+    type: DataTypes.BIGINT,
+    defaultValue: 0
+  },
   accessRequests: {
-    type: Array,
-    default: [],
+    type: DataTypes.JSONB,
+    defaultValue: []
   },
+  description: {
+    type: DataTypes.STRING,
+    defaultValue: ""
+  },
+  isArchived: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  }
+}, {
+  tableName: 'projects',
 });
 
-export default mongoose.model("Project", schema);
+export default Project;

@@ -6,39 +6,64 @@ import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
-import connectMongodb from "./config/db.js";
+import apiRoutes from "./routes/apiRoutes.js";
+import apiV1Router from "./routes/apiV1.js";
+import connectPostgres from "./config/db.js";
 import cookieParser from "cookie-parser";
 import Project from "./models/Project.js";
 import Account from "./models/Account.js";
 import Session from "./models/Session.js";
-import { stat } from "fs";
+import { Op } from "sequelize";
 
 dotenv.config();
+
+process.on("unhandledRejection", (reason) => {
+  console.error(
+    "Unhandled rejection:",
+    reason instanceof Error ? reason.message : reason
+  );
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error.message);
+});
 
 const app = express();
 
 const server = http.createServer(app);
 
-const io = new SocketIOServer(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL,
-    methods: ["GET", "POST"],
-    credentials: true,
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (origin === process.env.FRONTEND_URL) return true;
+
+  // Allow Vite/dev clients on localhost without hardcoding a single port.
+  return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+};
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`));
   },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  credentials: true,
+};
+
+const io = new SocketIOServer(server, {
+  cors: corsOptions,
 });
 
 app.set("io", io);
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL,
-    methods: ["POST", "GET"],
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 
 app.set("view engine", "ejs");
-connectMongodb();
+
+await connectPostgres();
 
 app.use(cookieParser(process.env.JWT_SECRET));
 app.use(express.urlencoded({ extended: true }));
@@ -46,119 +71,198 @@ app.use(express.json());
 
 app.use("/auth", authRoutes);
 app.use("/project", projectRoutes);
+app.use("/api/v1", apiV1Router);
+app.use("/api", apiRoutes);
 
 app.get("/health",(req,res)=>{
   res.status(200).json({msg:"200 OK"});
 });
 
-server.listen(8080, () => {
-  console.log(`server live`);
+const PORT = process.env.PORT || 8081;
+
+server.listen(PORT, () => {
+  console.log(`server live on port ${PORT}`);
 });
 
 //socket io part gulo
 
 const roomParticipants = new Map();
 const sessionStates = new Map(); // roomId -> { state, dbId }
+let sessionTrackingWarningShown = false;
 
 const emitRoomState = (roomId, newState) => {
   io.to(roomId).emit("room:state-change", { roomId, newState });
 };
 
+const warnSessionTracking = (error) => {
+  if (sessionTrackingWarningShown) return;
+  sessionTrackingWarningShown = true;
+  console.warn("Session persistence disabled for local dev:", error.message);
+};
+
 io.on("connection", (socket) => {
   socket.on("request access", async (data) => {
-    const projectId = data.projectId;
-    const requestedBy = data.requestedBy;
-    const projectOwner = data.projectOwner;
-    let projectData=await Project.findById(projectId);
-    let accessRequests=projectData.accessRequests;
-    accessRequests.push(requestedBy);
-    await Project.updateOne({_id:projectId},{accessRequests:accessRequests});
-    const projectAccessRequest={
-      projectId:projectId,
-      requestedBy:requestedBy,
-      status:"pending"
-    }
-    const ownerData=await Account.findOne({email:projectOwner});
-    let accessRequestsForOwner=ownerData.accessManagementProjects || [];
-    accessRequestsForOwner.push(projectAccessRequest);
-    await Account.updateOne({email:projectOwner},{accessManagementProjects:accessRequestsForOwner});
+    try {
+      const projectId = data.projectId;
+      const requestedBy = data.requestedBy;
+      const projectOwner = data.projectOwner;
+      const projectData = await Project.findByPk(projectId);
+      if (!projectData) return;
 
-    io.emit(`${projectOwner}:access requested`, {
-      projectId,
-      requestedBy,
-      projectName: projectData.name,
-    });
+      const accessRequests = Array.isArray(projectData.accessRequests)
+        ? [...projectData.accessRequests]
+        : [];
+      accessRequests.push(requestedBy);
+      await projectData.update({ accessRequests });
+      const projectAccessRequest={
+        projectId:projectId,
+        requestedBy:requestedBy,
+        status:"pending"
+      }
+      const ownerData = await Account.findOne({ where: { email: projectOwner } });
+      if (!ownerData) return;
+
+      const accessRequestsForOwner = Array.isArray(ownerData.accessManagementProjects)
+        ? [...ownerData.accessManagementProjects]
+        : [];
+      accessRequestsForOwner.push(projectAccessRequest);
+      await ownerData.update({ accessManagementProjects: accessRequestsForOwner });
+
+      io.emit(`${projectOwner}:access requested`, {
+        projectId,
+        requestedBy,
+        projectName: projectData.name,
+      });
+    } catch (error) {
+      console.warn("request access skipped:", error.message);
+    }
   });
 
   socket.on("grant project access", async (data) => {
-    const { projectId, requestedBy } = data;
-    const projectData = await Project.findById(projectId);
-    let collaborators = projectData.collaborators;
-    collaborators.push(requestedBy); 
-    await Project.updateOne(
-      { _id: projectId },
-      { collaborators: collaborators }
-    );
-    let requestedByData=await Account.findOne({email:requestedBy});
-    let sharedWithMe=requestedByData.sharedWithMe;
-    sharedWithMe.push(projectId);
-    await Account.updateOne({email:requestedBy},{sharedWithMe:sharedWithMe});
+    try {
+      const { projectId, requestedBy } = data;
+      const projectData = await Project.findByPk(projectId);
+      if (!projectData) return;
 
-    const ownerData=await Account.findOne({email:projectData.owner});
-    let accessRequestsForOwner=ownerData.accessManagementProjects || [];
-    for(let projectRequest of accessRequestsForOwner){
-      if(projectRequest.projectId.toString()===projectId.toString() && projectRequest.requestedBy===requestedBy){
-        projectRequest.status="granted";
+      const collaborators = Array.isArray(projectData.collaborators)
+        ? [...projectData.collaborators]
+        : [];
+      collaborators.push(requestedBy); 
+      await projectData.update({ collaborators });
+
+      const requestedByData = await Account.findOne({ where: { email: requestedBy } });
+      if (requestedByData) {
+        const sharedWithMe = Array.isArray(requestedByData.sharedWithMe)
+          ? [...requestedByData.sharedWithMe]
+          : [];
+      sharedWithMe.push(projectId);
+        await requestedByData.update({ sharedWithMe });
       }
-    }
-    await Account.updateOne({email:projectData.owner},{accessManagementProjects:accessRequestsForOwner});
 
-    io.emit(`${requestedBy}:access granted`,{projectName:projectData.name});
+      const ownerData = await Account.findOne({ where: { email: projectData.owner } });
+      if (!ownerData) return;
+
+      const accessRequestsForOwner = Array.isArray(ownerData.accessManagementProjects)
+        ? [...ownerData.accessManagementProjects]
+        : [];
+      for(let projectRequest of accessRequestsForOwner){
+        if(projectRequest.projectId.toString()===projectId.toString() && projectRequest.requestedBy===requestedBy){
+          projectRequest.status="granted";
+        }
+      }
+      await ownerData.update({ accessManagementProjects: accessRequestsForOwner });
+
+      io.emit(`${requestedBy}:access granted`,{projectName:projectData.name});
+    } catch (error) {
+      console.warn("grant access skipped:", error.message);
+    }
   });
 
   socket.on("room:join", async ({ roomId, userId }) => {
-    socket.join(roomId);
+    try {
+      socket.join(roomId);
 
-    let sessionMeta = sessionStates.get(roomId);
-    if (!sessionMeta) {
-      // Find or create session
-      let session = await Session.findOne({ roomCode: roomId, state: { $ne: "Terminated" } });
-      if (!session) {
-        session = new Session({
-          roomCode: roomId,
-          state: "Initialized",
-          startedAt: new Date(),
-          participants: []
-        });
-        await session.save();
+      let sessionMeta = sessionStates.get(roomId);
+      if (!sessionMeta) {
+        try {
+          let session = await Session.findOne({
+            where: {
+              roomCode: roomId,
+              state: { [Op.ne]: "Terminated" },
+            },
+          });
+          if (!session) {
+            session = await Session.create({
+              roomCode: roomId,
+              state: "Initialized",
+              startedAt: new Date(),
+              participants: []
+            });
+          }
+          sessionMeta = { state: session.state, dbId: session._id, participants: new Set() };
+        } catch (error) {
+          warnSessionTracking(error);
+          sessionMeta = { state: "Initialized", dbId: null, participants: new Set() };
+        }
+        sessionStates.set(roomId, sessionMeta);
       }
-      sessionMeta = { state: session.state, dbId: session._id, participants: new Set() };
-      sessionStates.set(roomId, sessionMeta);
-    }
 
-    sessionMeta.participants.add(socket.id);
-    
-    // Track participant joined
-    await Session.updateOne(
-      { _id: sessionMeta.dbId },
-      { $push: { participants: { userId, joinedAt: new Date() } } }
-    );
+      sessionMeta.participants.add(socket.id);
+      
+      // Track participant joined
+      if (sessionMeta.dbId) {
+        try {
+          const session = await Session.findByPk(sessionMeta.dbId);
+          if (session) {
+            const participants = Array.isArray(session.participants) ? [...session.participants] : [];
+            participants.push({ socketId: socket.id, userId, joinedAt: new Date() });
+            await session.update({ participants });
+          }
+        } catch (error) {
+          warnSessionTracking(error);
+          sessionMeta.dbId = null;
+        }
+      }
 
-    const prevCount = sessionMeta.participants.size - 1; // before this user
-    
-    if (prevCount === 0) {
-      sessionMeta.state = "Waiting";
-      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Waiting" });
-      emitRoomState(roomId, "Waiting");
-    } else if (prevCount === 1) {
-      sessionMeta.state = "Active";
-      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Active" });
-      emitRoomState(roomId, "Active");
-    } else if (prevCount > 1) {
-      sessionMeta.state = "Synchronizing";
-      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Synchronizing" });
-      emitRoomState(roomId, "Synchronizing");
-      io.to(roomId).emit("room:sync-start", { roomId });
+      const prevCount = sessionMeta.participants.size - 1; // before this user
+      
+      if (prevCount === 0) {
+        sessionMeta.state = "Waiting";
+        if (sessionMeta.dbId) {
+          try {
+            await Session.update({ state: "Waiting" }, { where: { _id: sessionMeta.dbId } });
+          } catch (error) {
+            warnSessionTracking(error);
+            sessionMeta.dbId = null;
+          }
+        }
+        emitRoomState(roomId, "Waiting");
+      } else if (prevCount === 1) {
+        sessionMeta.state = "Active";
+        if (sessionMeta.dbId) {
+          try {
+            await Session.update({ state: "Active" }, { where: { _id: sessionMeta.dbId } });
+          } catch (error) {
+            warnSessionTracking(error);
+            sessionMeta.dbId = null;
+          }
+        }
+        emitRoomState(roomId, "Active");
+      } else if (prevCount > 1) {
+        sessionMeta.state = "Synchronizing";
+        if (sessionMeta.dbId) {
+          try {
+            await Session.update({ state: "Synchronizing" }, { where: { _id: sessionMeta.dbId } });
+          } catch (error) {
+            warnSessionTracking(error);
+            sessionMeta.dbId = null;
+          }
+        }
+        emitRoomState(roomId, "Synchronizing");
+        io.to(roomId).emit("room:sync-start", { roomId });
+      }
+    } catch (error) {
+      warnSessionTracking(error);
     }
   });
 
@@ -166,7 +270,14 @@ io.on("connection", (socket) => {
     let sessionMeta = sessionStates.get(roomId);
     if (sessionMeta && sessionMeta.state === "Synchronizing") {
       sessionMeta.state = "Active";
-      await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Active" });
+      if (sessionMeta.dbId) {
+        try {
+          await Session.update({ state: "Active" }, { where: { _id: sessionMeta.dbId } });
+        } catch (error) {
+          warnSessionTracking(error);
+          sessionMeta.dbId = null;
+        }
+      }
       io.to(roomId).emit("room:sync-complete", { roomId });
       emitRoomState(roomId, "Active");
     }
@@ -174,15 +285,25 @@ io.on("connection", (socket) => {
 
   socket.on("code_change", async ({ roomId, linesDelta }) => {
     const sessionMeta = sessionStates.get(roomId);
-    if (sessionMeta) {
-      await Session.updateOne({ _id: sessionMeta.dbId }, { $inc: { linesWritten: linesDelta } });
+    if (sessionMeta?.dbId) {
+      try {
+        await Session.increment({ linesWritten: linesDelta }, { where: { _id: sessionMeta.dbId } });
+      } catch (error) {
+        warnSessionTracking(error);
+        sessionMeta.dbId = null;
+      }
     }
   });
 
   socket.on("code_execute", async ({ roomId }) => {
     const sessionMeta = sessionStates.get(roomId);
-    if (sessionMeta) {
-      await Session.updateOne({ _id: sessionMeta.dbId }, { $inc: { executionsRun: 1 } });
+    if (sessionMeta?.dbId) {
+      try {
+        await Session.increment({ executionsRun: 1 }, { where: { _id: sessionMeta.dbId } });
+      } catch (error) {
+        warnSessionTracking(error);
+        sessionMeta.dbId = null;
+      }
     }
   });
 
@@ -191,15 +312,37 @@ io.on("connection", (socket) => {
       if (sessionMeta.participants.has(socketId)) {
         sessionMeta.participants.delete(socketId);
         
-        await Session.updateOne(
-          { _id: sessionMeta.dbId, "participants.userId": { $exists: true } },
-          { $set: { "participants.$[elem].leftAt": new Date() } },
-          { arrayFilters: [{ "elem.leftAt": { $exists: false } }] }
-        );
+        if (sessionMeta.dbId) {
+          try {
+            const session = await Session.findByPk(sessionMeta.dbId);
+            if (session) {
+              const participants = Array.isArray(session.participants) ? [...session.participants] : [];
+              const updated = participants.map((p) => {
+                if (!p || typeof p !== 'object') return p;
+                if (p.socketId !== socketId) return p;
+                if (p.leftAt) return p;
+                return { ...p, leftAt: new Date() };
+              });
+              await session.update({ participants: updated });
+            }
+          } catch (error) {
+            warnSessionTracking(error);
+            sessionMeta.dbId = null;
+          }
+        }
 
         if (sessionMeta.participants.size === 0) {
           sessionMeta.state = "Terminated";
-          await Session.updateOne({ _id: sessionMeta.dbId }, { state: "Terminated", endedAt: new Date() });
+          if (sessionMeta.dbId) {
+            try {
+              await Session.update(
+                { state: "Terminated", endedAt: new Date() },
+                { where: { _id: sessionMeta.dbId } }
+              );
+            } catch (error) {
+              warnSessionTracking(error);
+            }
+          }
           sessionStates.delete(roomId);
           emitRoomState(roomId, "Terminated");
         }

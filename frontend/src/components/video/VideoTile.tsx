@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { MicOff, Signal, SignalHigh, SignalLow, SignalMedium } from "lucide-react";
+import { MicOff, Signal, SignalHigh, SignalLow, SignalMedium, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface VideoTileProps {
   stream: MediaStream | null;
@@ -28,58 +29,87 @@ export function VideoTile({
     }
   }, [stream]);
 
-  const displayName = isLocal ? `${userName} (You)` : userName;
-  const truncatedName = displayName.length > 18 ? displayName.slice(0, 15) + "..." : displayName;
-
+  const displayName = isLocal ? "You" : userName;
   const initials = userName
     .split(" ")
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "U";
 
   return (
-    <div
-      className={`relative w-full aspect-video rounded-xl overflow-hidden bg-gray-900 transition-all duration-300 animate-in fade-in zoom-in-95 ${
-        isActiveSpeaker ? "ring-2 ring-blue-500" : ""
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={`relative w-full aspect-video rounded-2xl overflow-hidden bg-muted transition-all duration-500 shadow-2xl ${
+        isActiveSpeaker ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "border border-white/5"
       }`}
     >
-      {isCameraOff ? (
-        <div className="w-full h-full flex items-center justify-center bg-gray-800">
-          <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-white text-2xl font-semibold">
-            {initials}
-          </div>
-        </div>
-      ) : (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className="w-full h-full object-cover"
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {isCameraOff ? (
+          <motion.div 
+            key="placeholder"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-sidebar to-background relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,var(--color-primary),transparent)] opacity-10" />
+            <div className="w-14 h-14 rounded-2xl bg-primary/20 backdrop-blur-xl border border-primary/20 flex items-center justify-center text-primary text-xl font-black italic shadow-lg z-10">
+              {initials}
+            </div>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 z-10">Camera Off</p>
+          </motion.div>
+        ) : (
+          <motion.video
+            key="video"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted={isLocal}
+            className="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-700"
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Name tag */}
-      <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-sm px-2 py-1 rounded-md">
-        {truncatedName}
+      {/* Name tag Overlay */}
+      <div className="absolute bottom-3 left-3 flex items-center gap-2">
+        <div className="bg-black/40 backdrop-blur-xl border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-lg shadow-xl flex items-center gap-1.5">
+          {isLocal && <User className="w-3 h-3 text-primary" />}
+          {displayName}
+        </div>
       </div>
 
-      {/* Mute indicator */}
-      {isMuted && (
-        <div className="absolute top-2 right-2 bg-red-500/80 p-1.5 rounded-full text-white">
-          <MicOff size={14} />
-        </div>
-      )}
+      {/* Status Bar Overlay */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5">
+        <AnimatePresence>
+          {isMuted && (
+            <motion.div 
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              className="bg-destructive/80 backdrop-blur-xl border border-destructive/20 p-1.5 rounded-lg text-white shadow-xl"
+            >
+              <MicOff size={12} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Connection Quality */}
-      {connectionQuality !== "unknown" && !isLocal && (
-        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-md text-white">
-          {connectionQuality === "good" && <SignalHigh size={14} className="text-green-500" />}
-          {connectionQuality === "fair" && <SignalMedium size={14} className="text-yellow-500" />}
-          {connectionQuality === "poor" && <SignalLow size={14} className="text-red-500" />}
-        </div>
+        {connectionQuality !== "unknown" && !isLocal && (
+          <div className="bg-black/40 backdrop-blur-xl border border-white/10 p-1.5 rounded-lg text-white shadow-xl">
+            {connectionQuality === "good" && <SignalHigh size={12} className="text-emerald-500" />}
+            {connectionQuality === "fair" && <SignalMedium size={12} className="text-amber-500" />}
+            {connectionQuality === "poor" && <SignalLow size={12} className="text-rose-500" />}
+          </div>
+        )}
+      </div>
+
+      {/* Speaker indicator (subtle pulse overlay) */}
+      {isActiveSpeaker && (
+        <div className="absolute inset-0 pointer-events-none ring-inset ring-2 ring-primary/20 animate-pulse" />
       )}
-    </div>
+    </motion.div>
   );
 }
