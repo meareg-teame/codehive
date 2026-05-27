@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 @layer base {
   :root {
@@ -161,4 +160,41 @@ input:-webkit-autofill:focus {
 .yRemoteSelectionHead.moving::after {
   opacity: 1 !important;
   transition: none !important;
+}
+
+/* ---------- Typography ---------- */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, .heading-1 { @apply text-4xl font-bold tracking-tight; }
+  h2, .heading-2 { @apply text-3xl font-semibold; }
+  h3, .heading-3 { @apply text-2xl font-medium; }
+}
+
+/* ---------- Glassmorphism ---------- */
+@layer utilities {
+  .glass {
+    @apply bg-background/30 backdrop-blur-lg border border-border/20 rounded-xl;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .glass:hover {
+    @apply shadow-xl;
+    transform: translateY(-2px);
+  }
+}
+
+/* ---------- Animations ---------- */
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
