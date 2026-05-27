@@ -61,5 +61,12 @@ PY
   fi
 fi
 
+# Railway free-tier containers can OOM if workers default to COUNT=(nproc*2).
+# Keep defaults conservative for the worker service unless user explicitly sets them.
+if [[ "${1:-}" == *"workers"* ]]; then
+  export COUNT="${COUNT:-2}"
+  export RAILS_MAX_THREADS="${RAILS_MAX_THREADS:-4}"
+fi
+
 # Now run the upstream entrypoint (starts cron) and then the command.
 exec /api/docker-entrypoint.sh "$@"
