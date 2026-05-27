@@ -26,7 +26,7 @@
   }
 
   * {
-    @apply border;
+    border-color: hsl(var(--border));
   }
   body {
     background-color: hsl(var(--background));
@@ -143,8 +143,7 @@ input:-webkit-autofill:focus {
 
 @layer base {
   * {
-    @apply border;
-    outline: 2px solid hsl(var(--ring));
+    border-color: hsl(var(--border));
   }
   body {
     background-color: hsl(var(--background));
