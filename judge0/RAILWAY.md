@@ -48,6 +48,14 @@ Set these on BOTH server and worker services:
 - `ENABLE_NETWORK=false`
 - `ALLOW_ORIGIN=*` (or your frontend URL)
 
+On Railway, the Redis plugin won’t affect Judge0 unless you map the plugin vars onto these names. For example:
+
+- `REDIS_HOST=${{ Redis.REDIS_HOST }}`
+- `REDIS_PORT=${{ Redis.REDIS_PORT }}`
+- `REDIS_PASSWORD=${{ Redis.REDIS_PASSWORD }}`
+
+If `REDIS_HOST` is missing, Judge0 defaults to `localhost` and background jobs will sit forever as `In Queue`.
+
 Optional hardening (recommended):
 
 - `ENABLE_COMPILER_OPTIONS=false`
@@ -64,5 +72,9 @@ JUDGE0_URL=https://<your-judge0-domain> node scripts/judge0-smoke-test.mjs
 Expected:
 - `/languages` returns a list
 - `/submissions?wait=true` returns `Accepted` and prints `judge0 smoke test ok`
+
+To confirm the worker is actually running, also test the async path:
+
+- Submit with `wait=false` and poll `/submissions/<token>` until it leaves `In Queue`.
 
 If `/workers` still returns `[]`, the worker service is not running or not connected to Redis.
