@@ -28,6 +28,7 @@ export function VideoConferencePanel({ roomId, socket, userId, userName }: Video
     toggleCamera,
     toggleScreenShare,
     callError,
+    callParticipantCount,
   } = useWebRTC({ roomId, socket, userId, userName });
 
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
@@ -127,7 +128,7 @@ export function VideoConferencePanel({ roomId, socket, userId, userName }: Video
           onClick={joinCall}
           className="w-full bg-primary text-primary-foreground font-black text-[11px] uppercase tracking-[0.2em] h-11 rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
-          Initialize Uplink
+          {callParticipantCount > 0 ? "Join Call" : "Initialize Uplink"}
         </Button>
 
         {callError && (

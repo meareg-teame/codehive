@@ -201,92 +201,102 @@ io.on("connection", (socket) => {
   });
 
   socket.on("room:join", async ({ roomId, userId }) => {
-    try {
-      socket.join(roomId);
+      try {
+        socket.join(roomId);
 
-      let sessionMeta = sessionStates.get(roomId);
-      if (!sessionMeta) {
-        try {
-          let session = await Session.findOne({
-            where: {
-              roomCode: roomId,
-              state: { [Op.ne]: "Terminated" },
-            },
-          });
-          if (!session) {
-            session = await Session.create({
-              roomCode: roomId,
-              state: "Initialized",
-              startedAt: new Date(),
-              participants: []
+        let sessionMeta = sessionStates.get(roomId);
+        if (!sessionMeta) {
+          try {
+            let session = await Session.findOne({
+              where: {
+                roomCode: roomId,
+                state: { [Op.ne]: "Terminated" },
+              },
             });
+            if (!session) {
+              session = await Session.create({
+                roomCode: roomId,
+                state: "Initialized",
+                startedAt: new Date(),
+                participants: []
+              });
+            }
+            sessionMeta = { state: session.state, dbId: session._id, participants: new Set() };
+          } catch (error) {
+            warnSessionTracking(error);
+            sessionMeta = { state: "Initialized", dbId: null, participants: new Set() };
           }
-          sessionMeta = { state: session.state, dbId: session._id, participants: new Set() };
-        } catch (error) {
-          warnSessionTracking(error);
-          sessionMeta = { state: "Initialized", dbId: null, participants: new Set() };
+          sessionStates.set(roomId, sessionMeta);
         }
-        sessionStates.set(roomId, sessionMeta);
-      }
 
-      sessionMeta.participants.add(socket.id);
-      
-      // Track participant joined
-      if (sessionMeta.dbId) {
-        try {
-          const session = await Session.findByPk(sessionMeta.dbId);
-          if (session) {
-            const participants = Array.isArray(session.participants) ? [...session.participants] : [];
-            participants.push({ socketId: socket.id, userId, joinedAt: new Date() });
-            await session.update({ participants });
+        sessionMeta.participants.add(socket.id);
+        
+        // Track participant joined
+        if (sessionMeta.dbId) {
+          try {
+            const session = await Session.findByPk(sessionMeta.dbId);
+            if (session) {
+              const participants = Array.isArray(session.participants) ? [...session.participants] : [];
+              participants.push({ socketId: socket.id, userId, joinedAt: new Date() });
+              await session.update({ participants });
+            }
+          } catch (error) {
+            warnSessionTracking(error);
+            sessionMeta.dbId = null;
           }
-        } catch (error) {
-          warnSessionTracking(error);
-          sessionMeta.dbId = null;
         }
-      }
 
-      const prevCount = sessionMeta.participants.size - 1; // before this user
-      
-      if (prevCount === 0) {
-        sessionMeta.state = "Waiting";
-        if (sessionMeta.dbId) {
-          try {
-            await Session.update({ state: "Waiting" }, { where: { _id: sessionMeta.dbId } });
-          } catch (error) {
-            warnSessionTracking(error);
-            sessionMeta.dbId = null;
+        const prevCount = sessionMeta.participants.size - 1; // before this user
+        
+        if (prevCount === 0) {
+          sessionMeta.state = "Waiting";
+          if (sessionMeta.dbId) {
+            try {
+              await Session.update({ state: "Waiting" }, { where: { _id: sessionMeta.dbId } });
+            } catch (error) {
+              warnSessionTracking(error);
+              sessionMeta.dbId = null;
+            }
           }
-        }
-        emitRoomState(roomId, "Waiting");
-      } else if (prevCount === 1) {
-        sessionMeta.state = "Active";
-        if (sessionMeta.dbId) {
-          try {
-            await Session.update({ state: "Active" }, { where: { _id: sessionMeta.dbId } });
-          } catch (error) {
-            warnSessionTracking(error);
-            sessionMeta.dbId = null;
+          emitRoomState(roomId, "Waiting");
+        } else if (prevCount === 1) {
+          sessionMeta.state = "Active";
+          if (sessionMeta.dbId) {
+            try {
+              await Session.update({ state: "Active" }, { where: { _id: sessionMeta.dbId } });
+            } catch (error) {
+              warnSessionTracking(error);
+              sessionMeta.dbId = null;
+            }
           }
-        }
-        emitRoomState(roomId, "Active");
-      } else if (prevCount > 1) {
-        sessionMeta.state = "Synchronizing";
-        if (sessionMeta.dbId) {
-          try {
-            await Session.update({ state: "Synchronizing" }, { where: { _id: sessionMeta.dbId } });
-          } catch (error) {
-            warnSessionTracking(error);
-            sessionMeta.dbId = null;
+          emitRoomState(roomId, "Active");
+        } else if (prevCount > 1) {
+          sessionMeta.state = "Synchronizing";
+          if (sessionMeta.dbId) {
+            try {
+              await Session.update({ state: "Synchronizing" }, { where: { _id: sessionMeta.dbId } });
+            } catch (error) {
+              warnSessionTracking(error);
+              sessionMeta.dbId = null;
+            }
           }
+          emitRoomState(roomId, "Synchronizing");
+          io.to(roomId).emit("room:sync-start", { roomId });
         }
-        emitRoomState(roomId, "Synchronizing");
-        io.to(roomId).emit("room:sync-start", { roomId });
+
+        // Send current webrtc call participants if any
+        const webrtcParticipants = roomParticipants.get(roomId);
+        if (webrtcParticipants) {
+          const participantsList = [];
+          webrtcParticipants.forEach((user, pSocketId) => {
+            participantsList.push({ socketId: pSocketId, ...user });
+          });
+          socket.emit("webrtc:call-status", { participants: participantsList });
+        }
+      } catch (error) {
+        warnSessionTracking(error);
       }
-    } catch (error) {
-      warnSessionTracking(error);
-    }
-  });
+    });
 
   socket.on("room:sync-confirm", async ({ roomId }) => {
     let sessionMeta = sessionStates.get(roomId);
