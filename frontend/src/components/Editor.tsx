@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Sidebar, MobileSidebar } from "./Sidebar";
 import {
   ResizableHandle,
@@ -33,6 +33,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { legacyProjects } from "@/api";
+import { createInvite } from "@/api/v1/team";
 import axios from "axios";
 import { isUnauthorizedError } from "@/api/client";
 import { useSocketOptional } from "@/app/providers/SocketProvider";
@@ -160,13 +161,74 @@ function Editor() {
     yjsInstances?.ydoc ?? null
   );
 
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => toast.success("Project link copied to clipboard"))
+        .catch(() => fallbackCopyToClipboard(text));
+    } else {
+      fallbackCopyToClipboard(text);
+    }
+  };
+
+  const fallbackCopyToClipboard = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      toast.success("Project link copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy link");
+    }
+    document.body.removeChild(textArea);
+  };
+
+  const handleInviteTeam = async () => {
+    try {
+      const inviteData = await createInvite(projectId);
+      if (inviteData && inviteData.inviteLink) {
+        copyToClipboard(inviteData.inviteLink);
+        toast.success("Invite link generated and copied to clipboard!");
+      } else {
+        throw new Error("Invalid invite data structure");
+      }
+    } catch (err) {
+      console.warn("Failed to generate invite token, using direct sharing link fallback:", err);
+      const directShareLink = `${window.location.origin}/editor/${projectId}`;
+      copyToClipboard(directShareLink);
+      toast.success("Collaboration link copied to clipboard!");
+    }
+  };
+
   useEffect(() => {
     legacyProjects
       .getProjectDetails(projectId)
-      .then((res) => {
-        setProjectDetails(reverseProjectFiles(res.projectDetails));
+      .then(async (res) => {
+        const details = reverseProjectFiles(res.projectDetails);
+        setProjectDetails(details);
         document.title = `${res.projectDetails.name} - CodeHive`;
         setUser(res.user);
+
+        // Auto-initialize with a default file if empty
+        if (!details.files || details.files.length === 0) {
+          const langMeta = LANGUAGE_CATALOG[res.projectDetails.language as Language] || LANGUAGE_CATALOG.nodejs;
+          const defaultFileName = (res.projectDetails.language === "java" ? "Main" : "main") + langMeta.extension;
+          try {
+            const createRes = await legacyProjects.createFile(projectId, defaultFileName);
+            const updatedDetails = reverseProjectFiles(createRes.projectDetails);
+            setProjectDetails(updatedDetails);
+            toast.success(`Initialized project with ${defaultFileName}`);
+            if (updatedDetails.files.length > 0) {
+              handleFileSelect(updatedDetails.files[0]);
+            }
+          } catch (err) {
+            console.error("Failed to auto-initialize project file:", err);
+          }
+        }
       })
       .catch((error) => {
         if (!axios.isAxiosError(error)) return;
@@ -388,8 +450,11 @@ function Editor() {
         <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-2 text-muted-foreground">
-               <LayoutGrid className="w-4 h-4" />
-               <ChevronRight className="w-3 h-3" />
+               <Link to="/dashboard" className="flex items-center gap-2 hover:text-foreground transition-colors group">
+                 <LayoutGrid className="w-4 h-4 group-hover:scale-105 transition-transform" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
+               </Link>
+               <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
                <span className="text-[10px] font-black uppercase tracking-widest italic text-foreground">{projectDetails.name}</span>
              </div>
           </div>
@@ -419,11 +484,11 @@ function Editor() {
                          if (open) setIsFileExist(false);
                        }}
                      >
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="w-6 h-6 rounded-md hover:bg-white/5">
+
+                        <Button variant="ghost" size="icon" className="w-6 h-6 rounded-md hover:bg-white/5" onClick={() => setIsCreateDialogOpen(true)}>
                           <Plus className="w-4 h-4" />
                         </Button>
-                      </DialogTrigger>
+
                       <DialogContent className="bg-popover border border-white/10 rounded-2xl max-w-sm">
                         <DialogHeader>
                           <DialogTitle className="text-lg">Create New File</DialogTitle>
@@ -464,10 +529,12 @@ function Editor() {
                         </form>
                       </DialogContent>
                     </Dialog>
-                    <Button variant="ghost" size="icon" className="w-6 h-6 rounded-md hover:bg-white/5" onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        toast.success("Project link copied to clipboard");
-                      }}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-6 h-6 rounded-md hover:bg-white/5"
+                      onClick={() => copyToClipboard(window.location.href)}
+                    >
                       <Share2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -534,7 +601,7 @@ function Editor() {
                        <div className="w-7 h-7 rounded-full border-2 border-background bg-accent flex items-center justify-center text-[10px] font-bold">+{onlineUsers}</div>
                     </div>
                   </div>
-                  <Button variant="outline" className="w-full h-9 rounded-xl border-white/5 text-[11px] font-semibold flex items-center gap-2 bg-accent/20 hover:bg-accent/40 transition-colors">
+                  <Button variant="outline" className="w-full h-9 rounded-xl border-white/5 text-[11px] font-semibold flex items-center gap-2 bg-accent/20 hover:bg-accent/40 transition-colors" onClick={handleInviteTeam}>
                     <UserPlus className="w-3.5 h-3.5" />
                     Invite Team
                   </Button>

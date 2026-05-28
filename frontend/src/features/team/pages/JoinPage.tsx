@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import HeroNavbar from "@/components/HeroNavbar";
 import { decodeInviteToken } from "@/lib/jwt";
 import { useAuth } from "@/app/providers/AuthProvider";
+import { legacyProjects } from "@/api";
 import { motion } from "framer-motion";
 
 function JoinPage() {
@@ -39,6 +40,7 @@ function JoinPage() {
       if (!user) {
         await guestLogin();
       }
+      await legacyProjects.joinProject(token);
       openProject();
     } catch {
       setError("Could not start a session. Try signing in from the auth page.");

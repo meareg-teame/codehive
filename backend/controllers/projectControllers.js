@@ -428,3 +428,33 @@ export async function accessManagement(req, res) {
   }
   res.status(200).json({accessManagementProjects:newAccessManagementProjects});
 }
+
+export async function joinProject(req, res) {
+  const { token } = req.body;
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const { projectId } = payload;
+    const userEmail = getCurrentUser(req);
+
+    if (userEmail === DEV_USER) {
+      return res.status(400).json({ msg: "Cannot join project as development user" });
+    }
+
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      return res.status(404).json({ msg: "Project not found" });
+    }
+
+    const collaborators = Array.isArray(project.collaborators) ? [...project.collaborators] : [];
+    if (!collaborators.includes(userEmail)) {
+      collaborators.push(userEmail);
+      await project.update({ collaborators });
+      project.changed("collaborators", true);
+      await project.save();
+    }
+
+    return res.status(200).json({ msg: "Successfully joined project", projectId });
+  } catch (error) {
+    return res.status(400).json({ msg: "Invalid or expired invite token" });
+  }
+}

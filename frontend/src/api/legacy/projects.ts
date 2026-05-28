@@ -118,3 +118,11 @@ export async function getAccessManagement() {
   }>("/project/access-management", {});
   return data.accessManagementProjects;
 }
+
+export async function joinProject(token: string) {
+  const { data } = await apiClient.post<{
+    msg: string;
+    projectId: string;
+  }>("/project/join", { token });
+  return data;
+}
