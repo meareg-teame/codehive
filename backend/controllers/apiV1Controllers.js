@@ -216,17 +216,22 @@ export const createInvite = async (req, res) => {
     const project = await Project.findByPk(req.params.id);
     if (!project) return res.status(404).json({ error: true, message: "Project not found" });
 
-    if (project.owner !== req.user.email) {
-      return res.status(403).json({ error: true, message: "Only owner can invite members" });
+    const userEmail = req.user.email || req.user.user;
+    const collaborators = Array.isArray(project.collaborators) ? project.collaborators : [];
+    const isOwner = project.owner === userEmail;
+    const isCollaborator = collaborators.includes(userEmail);
+    if (!isOwner && !isCollaborator) {
+      return res.status(403).json({ error: true, message: "You must be a project member to invite others" });
     }
 
     const inviteToken = jwt.sign(
-      { projectId: project._id, invitedBy: req.user.userId },
+      { projectId: project._id, invitedBy: req.user.userId, invitedByEmail: userEmail },
       process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
 
-    const inviteLink = `${process.env.FRONTEND_URL}/join/${inviteToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const inviteLink = `${frontendUrl}/join/${inviteToken}`;
     res.status(200).json({ success: true, data: { inviteLink, token: inviteToken } });
   } catch (error) {
     res.status(500).json({ error: true, message: error.message });

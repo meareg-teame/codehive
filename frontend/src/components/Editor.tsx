@@ -36,7 +36,7 @@ import { legacyProjects } from "@/api";
 import InviteModal from "./InviteModal";
 import { createInvite, generateLegacyInvite } from "@/api/v1/team";
 import axios from "axios";
-import { isUnauthorizedError } from "@/api/client";
+import { getErrorMessage, isUnauthorizedError } from "@/api/client";
 import { useSocketOptional } from "@/app/providers/SocketProvider";
 import {
   SOCKET_EVENTS,
@@ -165,17 +165,28 @@ function Editor() {
     yjsInstances?.ydoc ?? null
   );
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = async (
+    text: string,
+    successMessage = "Project link copied to clipboard"
+  ) => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
-        .then(() => toast.success("Project link copied to clipboard"))
-        .catch(() => fallbackCopyToClipboard(text));
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success(successMessage);
+        return;
+      } catch {
+        fallbackCopyToClipboard(text, successMessage);
+        return;
+      }
     } else {
-      fallbackCopyToClipboard(text);
+      fallbackCopyToClipboard(text, successMessage);
     }
   };
 
-  const fallbackCopyToClipboard = (text: string) => {
+  const fallbackCopyToClipboard = (
+    text: string,
+    successMessage = "Project link copied to clipboard"
+  ) => {
     const textArea = document.createElement("textarea");
     textArea.value = text;
     textArea.style.position = "fixed";
@@ -183,46 +194,76 @@ function Editor() {
     textArea.focus();
     textArea.select();
     try {
-      document.execCommand('copy');
-      toast.success("Project link copied to clipboard");
-    } catch (err) {
+      document.execCommand("copy");
+      toast.success(successMessage);
+    } catch {
       toast.error("Failed to copy link");
     }
     document.body.removeChild(textArea);
   };
 
-  const handleInviteTeam = async () => {
-    setInviteGenerating(true);
-    let link: string | null = null;
+  const generateInviteLink = async () => {
     try {
       const inviteData = await createInvite(projectId);
-      if (inviteData?.inviteLink) link = inviteData.inviteLink;
-    } catch {
+      if (inviteData?.inviteLink) return inviteData.inviteLink;
+    } catch (primaryError) {
       try {
         const legacyData = await generateLegacyInvite(projectId);
-        if (legacyData?.inviteLink) link = legacyData.inviteLink;
-      } catch {
-        // all API attempts failed
+        if (legacyData?.inviteLink) return legacyData.inviteLink;
+      } catch (legacyError) {
+        throw legacyError ?? primaryError;
       }
     }
-    setInviteGenerating(false);
-    if (link) {
+    throw new Error("Could not generate invite link");
+  };
+
+  const handleInviteTeam = async () => {
+    setInviteGenerating(true);
+    try {
+      const link = await generateInviteLink();
       setInviteLink(link);
       setIsInviteModalOpen(true);
-    } else {
-      toast.error("Could not generate invite link. Only the project owner can invite members.");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not generate invite link"));
+    } finally {
+      setInviteGenerating(false);
+    }
+  };
+
+  const handleShareLink = async () => {
+    setInviteGenerating(true);
+    try {
+      const link = await generateInviteLink();
+      setInviteLink(link);
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Join ${projectDetails.name || "this project"} on CodeHive`,
+            text: "Use this invite link to collaborate on the project.",
+            url: link,
+          });
+          toast.success("Invite link shared");
+          return;
+        } catch (shareError) {
+          if (shareError instanceof DOMException && shareError.name === "AbortError") {
+            return;
+          }
+        }
+      }
+
+      await copyToClipboard(link, "Invite link copied to clipboard");
+      setIsInviteModalOpen(true);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not generate share link"));
+    } finally {
+      setInviteGenerating(false);
     }
   };
 
   const copyInviteLink = () => {
     if (!inviteLink) return;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(inviteLink)
-        .then(() => toast.success("Invite link copied!"))
-        .catch(() => { fallbackCopyToClipboard(inviteLink); });
-    } else {
-      fallbackCopyToClipboard(inviteLink);
-    }
+    void copyToClipboard(inviteLink, "Invite link copied!");
   };
 
   useEffect(() => {
@@ -555,10 +596,15 @@ function Editor() {
                       variant="ghost"
                       size="icon"
                       className="w-6 h-6 rounded-md hover:bg-white/5"
-                      title="Copy project link to share"
-                      onClick={() => copyToClipboard(window.location.href)}
+                      title="Share invite link"
+                      disabled={inviteGenerating}
+                      onClick={() => void handleShareLink()}
                     >
-                      <Share2 className="w-3.5 h-3.5" />
+                      {inviteGenerating ? (
+                        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                      ) : (
+                        <Share2 className="w-3.5 h-3.5" />
+                      )}
                     </Button>
                   </div>
                 </div>
