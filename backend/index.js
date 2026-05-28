@@ -15,6 +15,7 @@ import Account from "./models/Account.js";
 import Session from "./models/Session.js";
 import { Op } from "sequelize";
 import { createYjsServer } from "./yjs-server.js";
+import { getFrontendUrl } from "./lib/urlUtils.js";
 
 dotenv.config();
 
@@ -39,7 +40,7 @@ const isAllowedOrigin = (origin) => {
   if (!origin) return true;
 
   const cleanOrigin = origin.replace(/\/+$/, "");
-  const cleanFrontendUrl = (process.env.FRONTEND_URL || "").replace(/\/+$/, "");
+  const cleanFrontendUrl = getFrontendUrl(process.env.FRONTEND_URL, "");
 
   if (cleanOrigin === cleanFrontendUrl) return true;
   if (cleanOrigin === "https://codehive-gamma.vercel.app") return true;

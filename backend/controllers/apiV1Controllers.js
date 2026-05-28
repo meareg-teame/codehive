@@ -4,6 +4,7 @@ import Session from "../models/Session.js";
 import CodeDocument from "../models/CodeDocument.js";
 import Account from "../models/Account.js";
 import { Op } from "sequelize";
+import { getFrontendUrl } from "../lib/urlUtils.js";
 
 export const getMe = async (req, res) => {
   try {
@@ -234,7 +235,10 @@ export const createInvite = async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
+    const frontendUrl = getFrontendUrl(
+      process.env.FRONTEND_URL || req.headers.origin,
+      "http://localhost:5173"
+    );
     const inviteLink = `${frontendUrl}/join/${inviteToken}`;
     res.status(200).json({ success: true, data: { inviteLink, token: inviteToken } });
   } catch (error) {

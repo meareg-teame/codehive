@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import axios from "axios";
 import { executeWithJudge0 } from "../services/judge0.js";
 import { Op } from "sequelize";
+import { getFrontendUrl } from "../lib/urlUtils.js";
 
 const DEV_USER = "local@codecollab.dev";
 const devProjects = new Map();
@@ -476,7 +477,7 @@ export async function generateInvite(req, res) {
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const frontendUrl = getFrontendUrl(process.env.FRONTEND_URL);
       const inviteLink = `${frontendUrl}/join/${inviteToken}`;
       return res.status(200).json({ msg: "Invite generated", inviteLink, token: inviteToken });
     }
@@ -496,7 +497,7 @@ export async function generateInvite(req, res) {
       { expiresIn: "7d" }
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const frontendUrl = getFrontendUrl(process.env.FRONTEND_URL);
     const inviteLink = `${frontendUrl}/join/${inviteToken}`;
 
     return res.status(200).json({ msg: "Invite generated", inviteLink, token: inviteToken });

@@ -8,6 +8,7 @@ import Session from "../models/Session.js";
 import { Op } from "sequelize";
 import { getOverview, getProjectAnalytics } from "../controllers/analyticsControllers.js";
 import { generateInvite } from "../controllers/projectControllers.js";
+import { getFrontendUrl } from "../lib/urlUtils.js";
 const router = express.Router();
 
 // Auth routes
@@ -273,7 +274,7 @@ router.post("/v1/projects/:id/team/invite", authenticateToken, async (req, res) 
       { expiresIn: "7d" }
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const frontendUrl = getFrontendUrl(process.env.FRONTEND_URL);
     const inviteLink = `${frontendUrl}/join/${inviteToken}`;
 
     res.json({ success: true, data: { inviteLink, token: inviteToken } });
@@ -338,5 +339,4 @@ router.post("/v1/projects/:id/team/generate-invite", authenticateToken, async (r
 });
 
 export default router;
-
 
