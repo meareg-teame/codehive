@@ -158,6 +158,16 @@ function Editor() {
   const currentLanguageExtension = currentLanguageMeta.extension;
   const currentLanguageName = currentLanguageMeta.monacoLanguage;
 
+  const destroyYjsSession = useCallback(() => {
+    if (!yRef.current) return;
+
+    yRef.current.binding?.destroy();
+    yRef.current.provider.destroy();
+    yRef.current.ydoc.destroy();
+    yRef.current = null;
+    setYjsInstances(null);
+  }, []);
+
   const { onlineUsers } = usePresence(
     yjsInstances?.provider ?? null,
     yjsInstances?.editor ?? null,
@@ -440,10 +450,7 @@ function Editor() {
   };
 
   const handleFileSelect = (file: ProjectFile) => {
-    if (yRef.current) {
-      yRef.current.ydoc.destroy();
-      yRef.current.provider.destroy();
-    }
+    destroyYjsSession();
     
     setSelectedFile(file.name);
     selectedFileRef.current = file.name;
@@ -452,6 +459,12 @@ function Editor() {
       editorRef.current.setValue(file.content);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      destroyYjsSession();
+    };
+  }, [destroyYjsSession]);
 
   if (!isAccessAllowed) {
     return (
@@ -494,7 +507,7 @@ function Editor() {
                 });
               }}
             >
-              {isAccessRequested || projectDetails.accessRequests.includes(requestedBy)
+              {isAccessRequested || (projectDetails.accessRequests ?? []).includes(requestedBy)
                 ? "Request Pending..."
                 : "Request Access"}
             </Button>
@@ -774,6 +787,7 @@ function Editor() {
                             theme="vs-dark"
                             onMount={(editor, monaco) => {
                               monacoRef.current = monaco;
+                              destroyYjsSession();
                               const ydoc = new Y.Doc();
                               const provider = new WebsocketProvider(
                                 YWS_URL,
@@ -788,14 +802,14 @@ function Editor() {
 
                               const type = ydoc.getText("monaco");
                               const model = editor.getModel();
-                              new MonacoBinding(
+                              const binding = new MonacoBinding(
                                 type,
                                 model as monaco.editor.ITextModel,
                                 new Set([editor]),
                                 provider.awareness
                               );
 
-                              yRef.current = { ydoc, provider, type, binding: null };
+                              yRef.current = { ydoc, provider, type, binding };
 
                               editor.updateOptions({
                                 mouseWheelZoom: true,
@@ -804,7 +818,7 @@ function Editor() {
                                 fontFamily: "'Geist Mono', 'Fira Code', monospace",
                                 fontLigatures: true,
                                 lineNumbers: "on",
-                                minimap: { enabled: true, opacity: 0.5, scale: 0.75 },
+                                minimap: { enabled: true, scale: 0.75 },
                                 scrollBeyondLastLine: true,
                                 padding: { top: 16, bottom: 16 },
                                 cursorSmoothCaretAnimation: "on",
@@ -814,15 +828,16 @@ function Editor() {
                                 scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
                               });
                               
-                              // Sync editor content with Yjs document
-                              if (type.length === 0) {
-                                // No remote content yet, push local file content
-                                type.insert(0, editorValue);
-                                editor.setValue(editorValue);
-                              } else {
-                                // Remote content exists, load it into the editor
-                                editor.setValue(type.toString());
-                              }
+                              provider.once("sync", (isSynced: boolean) => {
+                                if (!isSynced) return;
+
+                                if (type.length === 0 && editorValue) {
+                                  type.insert(0, editorValue);
+                                } else {
+                                  editor.setValue(type.toString());
+                                }
+                              });
+
                               editorRef.current = editor;
                               setYjsInstances({ provider, ydoc, editor });
 
@@ -899,9 +914,11 @@ function Editor() {
                                         <p className="font-bold tracking-widest opacity-50 uppercase text-[10px]">Processing Contextual Intelligence...</p>
                                       </div>
                                     ) : (
-                                      <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-invert prose-xs max-w-none prose-p:mb-2 prose-code:text-primary">
-                                        {aiExplaination}
-                                      </ReactMarkdown>
+                                      <div className="prose prose-invert prose-xs max-w-none prose-p:mb-2 prose-code:text-primary">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                          {aiExplaination}
+                                        </ReactMarkdown>
+                                      </div>
                                     )}
                                   </div>
                                 </DialogContent>

@@ -7,6 +7,14 @@ const CURSOR_COLORS = [
   '#10B981', '#F97316', '#8B5CF6', '#EF4444', '#06B6D4', '#F59E0B'
 ];
 
+function getColorIndex(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return hash % CURSOR_COLORS.length;
+}
+
 export function usePresence(
   provider: WebsocketProvider | null,
   editor: monaco.editor.IStandaloneCodeEditor | null,
@@ -20,7 +28,7 @@ export function usePresence(
     if (!provider || !editor || !ydoc) return;
 
     // Assign color
-    const colorIndex = Math.abs(userName.hashCode ? userName.hashCode() : userName.length) % CURSOR_COLORS.length;
+    const colorIndex = getColorIndex(userName || "guest");
     const myColor = CURSOR_COLORS[colorIndex];
 
     provider.awareness.setLocalStateField("user", {
@@ -117,6 +125,7 @@ export function usePresence(
     });
 
     return () => {
+      provider.awareness.setLocalState(null);
       provider.awareness.off("change", handleAwarenessUpdate);
       disposable.dispose();
       timeoutIds.forEach(clearTimeout);

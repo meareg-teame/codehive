@@ -40,6 +40,11 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     isInitiator: boolean,
     remoteUserName: string
   ) => {
+    const existingPeer = peersRef.current.get(userToSignal);
+    if (existingPeer) {
+      return existingPeer.peer;
+    }
+
     const peer = new SimplePeer({
       initiator: isInitiator,
       trickle: true,
@@ -62,7 +67,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
           targetSocketId: userToSignal,
           answer: signal,
         });
-      } else if (signal.candidate) {
+      } else if ("candidate" in signal) {
         socket.emit("webrtc:ice-candidate", {
           targetSocketId: userToSignal,
           candidate: signal,
@@ -99,6 +104,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
   };
 
   const joinCall = async () => {
+    if (isInCall) return;
     setCallError(null);
     let stream: MediaStream;
     try {
@@ -238,22 +244,13 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     }
   };
 
-  const toggleCamera = () => {
-    if (streamRef.current) {
-      const videoTrack = streamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        const newCameraOff = !videoTrack.enabled;
-        setIsCameraOff(newCameraOff);
-        socket.emit("webrtc:media-state", { roomId, isMuted, isCameraOff: newCameraOff });
-      }
-    }
-  };
-
   const toggleScreenShare = async () => {
     if (!isScreenSharing) {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ cursor: "always" } as any);
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" } as MediaTrackConstraints,
+          audio: false,
+        });
         const screenTrack = screenStream.getVideoTracks()[0];
 
         // Replace video track for all peers
@@ -315,6 +312,45 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     }
   };
 
+  const enableCameraTrack = useCallback(async () => {
+    if (!streamRef.current) return;
+
+    try {
+      const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const cameraTrack = cameraStream.getVideoTracks()[0];
+
+      peersRef.current.forEach(({ peer }) => {
+        const currentVideoTrack = streamRef.current?.getVideoTracks()[0];
+        if (currentVideoTrack && streamRef.current) {
+          peer.replaceTrack(currentVideoTrack, cameraTrack, streamRef.current);
+        }
+      });
+
+      streamRef.current.addTrack(cameraTrack);
+      setLocalStream(new MediaStream(streamRef.current.getTracks()));
+      setIsCameraOff(false);
+      socket.emit("webrtc:media-state", { roomId, isMuted, isCameraOff: false });
+    } catch (error) {
+      console.error("Error enabling camera:", error);
+      setCallError("Could not enable camera.");
+    }
+  }, [isMuted, roomId, socket]);
+
+  const toggleCameraSafe = useCallback(() => {
+    if (!streamRef.current) return;
+
+    if (streamRef.current.getVideoTracks().length === 0) {
+      void enableCameraTrack();
+      return;
+    }
+
+    const videoTrack = streamRef.current.getVideoTracks()[0];
+    videoTrack.enabled = !videoTrack.enabled;
+    const newCameraOff = !videoTrack.enabled;
+    setIsCameraOff(newCameraOff);
+    socket.emit("webrtc:media-state", { roomId, isMuted, isCameraOff: newCameraOff });
+  }, [enableCameraTrack, isMuted, roomId, socket]);
+
   return {
     localStream,
     peers,
@@ -325,7 +361,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     joinCall,
     leaveCall,
     toggleMute,
-    toggleCamera,
+    toggleCamera: toggleCameraSafe,
     toggleScreenShare,
     callError,
   };

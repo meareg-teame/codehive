@@ -1,90 +1,161 @@
-// backend/yjs-server.js
 import { WebSocketServer } from "ws";
 import * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness.js";
 import * as syncProtocol from "y-protocols/sync.js";
+import * as encoding from "lib0/encoding";
+import * as decoding from "lib0/decoding";
 import { URL } from "url";
 
-// Map from room name to a Y.Doc
-const docs = new Map();
+const MESSAGE_SYNC = 0;
+const MESSAGE_AWARENESS = 1;
+const MESSAGE_QUERY_AWARENESS = 3;
+
+const rooms = new Map();
 
 function getRoomName(request) {
   const url = new URL(request.url, `http://${request.headers.host}`);
-  return url.pathname.slice(1); // remove leading '/'
+  return url.pathname.slice(1);
 }
 
-function getDoc(roomName) {
-  if (!docs.has(roomName)) {
-    const doc = new Y.Doc();
-    docs.set(roomName, doc);
+function readAwarenessClientIds(update) {
+  const decoder = decoding.createDecoder(update);
+  const count = decoding.readVarUint(decoder);
+  const clientIds = [];
+
+  for (let i = 0; i < count; i += 1) {
+    clientIds.push(decoding.readVarUint(decoder));
+    decoding.readVarUint(decoder);
+    decoding.readVarString(decoder);
   }
-  return docs.get(roomName);
+
+  return clientIds;
+}
+
+function sendMessage(conn, message) {
+  if (conn.readyState === 1) {
+    conn.send(message);
+  }
+}
+
+function broadcast(room, message, origin = null) {
+  room.connections.forEach((conn) => {
+    if (conn !== origin) {
+      sendMessage(conn, message);
+    }
+  });
+}
+
+function getRoom(roomName) {
+  if (!rooms.has(roomName)) {
+    const doc = new Y.Doc();
+    const awareness = new awarenessProtocol.Awareness(doc);
+    const connections = new Set();
+
+    const room = { doc, awareness, connections };
+
+    doc.on("update", (update, origin) => {
+      const encoder = encoding.createEncoder();
+      encoding.writeVarUint(encoder, MESSAGE_SYNC);
+      syncProtocol.writeUpdate(encoder, update);
+      broadcast(room, encoding.toUint8Array(encoder), origin);
+    });
+
+    awareness.on("update", ({ added, updated, removed }, origin) => {
+      const changedClients = added.concat(updated, removed);
+      if (changedClients.length === 0) return;
+
+      const encoder = encoding.createEncoder();
+      encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
+      encoding.writeVarUint8Array(
+        encoder,
+        awarenessProtocol.encodeAwarenessUpdate(awareness, changedClients)
+      );
+      broadcast(room, encoding.toUint8Array(encoder), origin);
+    });
+
+    rooms.set(roomName, room);
+  }
+
+  return rooms.get(roomName);
 }
 
 function setupWSConnection(conn, req) {
   const roomName = getRoomName(req);
-  const doc = getDoc(roomName);
-  
+  const room = getRoom(roomName);
+  const { doc, awareness, connections } = room;
+  const connectionClientIds = new Set();
+
+  connections.add(conn);
   conn.binaryType = "arraybuffer";
-
-  // Create a new awareness instance for each connection
-  const awareness = new awarenessProtocol.Awareness(doc);
-  
-  const onSyncMessage = (message) => {
-    syncProtocol.readSyncMessage(message, conn, doc);
-  };
-
-  const onAwarenessMessage = (message) => {
-    awarenessProtocol.applyAwarenessUpdate(awareness, message, conn);
-  };
-
-  const onDocUpdate = (update, origin) => {
-    if (origin !== conn) {
-      const message = syncProtocol.createSyncMessage(doc, update);
-      conn.send(message);
-    }
-  };
-
-  const onAwarenessUpdate = (update, origin) => {
-    if (origin !== conn) {
-      const message = awarenessProtocol.createAwarenessUpdate(awareness, update);
-      conn.send(message);
-    }
-  };
 
   conn.on("message", (message) => {
     try {
-      const buffer = new Uint8Array(message);
-      const type = syncProtocol.readMessageType(buffer);
-      switch (type) {
-        case syncProtocol.messageType.sync:
-          onSyncMessage(buffer);
+      const decoder = decoding.createDecoder(new Uint8Array(message));
+      const messageType = decoding.readVarUint(decoder);
+
+      switch (messageType) {
+        case MESSAGE_SYNC: {
+          const encoder = encoding.createEncoder();
+          encoding.writeVarUint(encoder, MESSAGE_SYNC);
+          syncProtocol.readSyncMessage(decoder, encoder, doc, conn);
+          if (encoding.length(encoder) > 1) {
+            sendMessage(conn, encoding.toUint8Array(encoder));
+          }
           break;
-        case syncProtocol.messageType.awareness:
-          onAwarenessMessage(buffer);
+        }
+        case MESSAGE_AWARENESS: {
+          const update = decoding.readVarUint8Array(decoder);
+          readAwarenessClientIds(update).forEach((clientId) => {
+            connectionClientIds.add(clientId);
+          });
+          awarenessProtocol.applyAwarenessUpdate(awareness, update, conn);
+          break;
+        }
+        case MESSAGE_QUERY_AWARENESS: {
+          const encoder = encoding.createEncoder();
+          encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
+          encoding.writeVarUint8Array(
+            encoder,
+            awarenessProtocol.encodeAwarenessUpdate(
+              awareness,
+              Array.from(awareness.getStates().keys())
+            )
+          );
+          sendMessage(conn, encoding.toUint8Array(encoder));
+          break;
+        }
+        default:
           break;
       }
-    } catch (err) {
-      console.error("Error processing message:", err);
+    } catch (error) {
+      console.error("Yjs message handling error:", error);
     }
   });
 
   conn.on("close", () => {
-    awareness.removeStates([conn.id], conn);
-    doc.off("update", onDocUpdate);
-    awareness.off("update", onAwarenessUpdate);
+    connections.delete(conn);
+    awarenessProtocol.removeAwarenessStates(
+      awareness,
+      Array.from(connectionClientIds),
+      conn
+    );
   });
 
-  // Subscribe to events
-  doc.on("update", onDocUpdate);
-  awareness.on("update", onAwarenessUpdate);
+  const syncEncoder = encoding.createEncoder();
+  encoding.writeVarUint(syncEncoder, MESSAGE_SYNC);
+  syncProtocol.writeSyncStep1(syncEncoder, doc);
+  sendMessage(conn, encoding.toUint8Array(syncEncoder));
 
-  // Immediately send sync step 1 and awareness state
-  const syncStep1 = syncProtocol.createSyncStep1(doc);
-  conn.send(syncStep1);
-  
-  const awarenessState = awarenessProtocol.createAwarenessUpdate(awareness, awareness.getStates());
-  conn.send(awarenessState);
+  const awarenessEncoder = encoding.createEncoder();
+  encoding.writeVarUint(awarenessEncoder, MESSAGE_AWARENESS);
+  encoding.writeVarUint8Array(
+    awarenessEncoder,
+    awarenessProtocol.encodeAwarenessUpdate(
+      awareness,
+      Array.from(awareness.getStates().keys())
+    )
+  );
+  sendMessage(conn, encoding.toUint8Array(awarenessEncoder));
 }
 
 export function createYjsServer(httpServer) {
@@ -96,13 +167,14 @@ export function createYjsServer(httpServer) {
     try {
       const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
       if (url.pathname.startsWith("/socket.io")) {
-        return; // Allow Socket.io to handle its own upgrades
+        return;
       }
+
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request);
       });
-    } catch (err) {
-      console.error("Yjs server upgrade handling error:", err);
+    } catch (error) {
+      console.error("Yjs server upgrade handling error:", error);
       socket.destroy();
     }
   });
