@@ -1,43 +1,43 @@
-import { request } from "express";
 import Project from "../models/Project.js";
-import jwt from "jsonwebtoken";
 
 /**
  * @function isUserAllowed
  * @description Middleware to check if the authenticated user is allowed to access a specific project.
  * Requires `req.user` to be populated by a previous authentication middleware.
- * Determines access based on whether the user is a collaborator or the owner of the project.
+ * Determines access based on whether the user's email is in the collaborator list or is the owner.
  * Attaches the `projectData` to `req.project` if access is granted.
- * Responds with 401 if authentication is missing, 400 if project ID is missing, 404 if project not found, or 403 if access is denied.
- * @param {Object} req - Express request object (expects `req.user.userId` and `req.params.id` or `req.body.id` for projectId).
+ * @param {Object} req - Express request object (expects `req.user.user` containing the user email).
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
 export async function isUserAllowed(req, res, next) {
-  if (!req.user || !req.user.userId) {
+  if (!req.user) {
     return res.status(401).json({ error: true, message: "Authentication required" });
   }
 
-  const projectId = req.params.id || req.body.id; // Check both params and body
+  const userEmail = req.user.user || req.user.email;
+  if (!userEmail) {
+    return res.status(401).json({ error: true, message: "Authentication email is required" });
+  }
+
+  const projectId = req.params.id || req.body.id;
   if (!projectId) {
     return res.status(400).json({ error: true, message: "Project ID is required" });
   }
 
   try {
-    const userId = req.user.userId;
-    const projectData = await Project.findOne({ _id: projectId });
+    const projectData = await Project.findOne({ where: { _id: projectId } });
 
     if (!projectData) {
       return res.status(404).json({ error: true, message: "Project not found" });
     }
 
-    // Check if the user is a collaborator or the project owner
-    const isCollaborator = projectData.collaborators.some(
-      (collaborator) => collaborator.userId && collaborator.userId.toString() === userId.toString()
-    );
+    // Check if the user is the project owner
+    const isOwner = projectData.owner === userEmail;
 
-    const isOwner = projectData.ownerId && projectData.ownerId.toString() === userId.toString();
-
+    // Check if the user is a collaborator (collaborators are stored as email strings)
+    const collaborators = Array.isArray(projectData.collaborators) ? projectData.collaborators : [];
+    const isCollaborator = collaborators.includes(userEmail);
 
     if (!isCollaborator && !isOwner) {
       return res.status(403).json({ error: true, message: "Access denied. Not a project collaborator or owner." });
