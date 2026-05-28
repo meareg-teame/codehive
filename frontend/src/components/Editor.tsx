@@ -555,15 +555,10 @@ function Editor() {
                       variant="ghost"
                       size="icon"
                       className="w-6 h-6 rounded-md hover:bg-white/5"
-                      title="Generate & copy invite link"
-                      disabled={inviteGenerating}
-                      onClick={() => void handleInviteTeam()}
+                      title="Copy project link to share"
+                      onClick={() => copyToClipboard(window.location.href)}
                     >
-                      {inviteGenerating ? (
-                        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
-                      ) : (
-                        <Share2 className="w-3.5 h-3.5" />
-                      )}
+                      <Share2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
