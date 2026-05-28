@@ -445,6 +445,7 @@ function Editor() {
 
   return (
     <TooltipProvider>
+      <Toaster theme="dark" />
       <div className="flex h-screen bg-background overflow-hidden font-sans selection:bg-primary/30">
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
