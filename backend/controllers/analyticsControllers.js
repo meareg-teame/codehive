@@ -4,10 +4,17 @@ import { Op } from "sequelize";
 
 export async function getOverview(req, res) {
   try {
-    const userEmail = req.user.user;
+    const userEmail = req.user.email || req.user.user;
 
-    // Get user's projects
-    const userProjects = await Project.findAll({ where: { owner: userEmail } });
+    // Get user's projects (both owned and collaborated)
+    const userProjects = await Project.findAll({
+      where: {
+        [Op.or]: [
+          { owner: userEmail },
+          { collaborators: { [Op.contains]: [userEmail] } }
+        ]
+      }
+    });
     const projectIds = userProjects.map((p) => p._id);
     const projectCount = userProjects.length;
 
