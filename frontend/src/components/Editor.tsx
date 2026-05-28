@@ -146,6 +146,7 @@ function Editor() {
   const [aiExplaination, setAiExplaination] = useState("");
   const [roomState, setRoomState] = useState("Initialized");
   const [yjsInstances, setYjsInstances] = useState<YjsInstances | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
   const currentLanguage = projectDetails.language;
   const currentLanguageMeta = LANGUAGE_CATALOG[currentLanguage] || LANGUAGE_CATALOG.nodejs;
@@ -415,7 +416,13 @@ function Editor() {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Explorer</span>
                   </div>
                   <div className="flex items-center gap-1">
-                     <Dialog onOpenChange={(e) => e && setIsFileExist(false)}>
+                     <Dialog
+                       open={isCreateDialogOpen}
+                       onOpenChange={(open) => {
+                         setIsCreateDialogOpen(open);
+                         if (open) setIsFileExist(false);
+                       }}
+                     >
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="w-6 h-6 rounded-md hover:bg-white/5">
                           <Plus className="w-4 h-4" />
@@ -441,6 +448,7 @@ function Editor() {
                               setProjectDetails(reverseProjectFiles(response.projectDetails));
                               toast.success(`Created ${fullName}`);
                               handleFileSelect({ name: fullName, content: "" });
+                              setIsCreateDialogOpen(false);
                             } catch (err) {
                               toast.error("Failed to create file");
                             }
