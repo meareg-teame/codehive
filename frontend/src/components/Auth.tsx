@@ -58,7 +58,9 @@ function Auth() {
     try {
       const msg = await signup(name, email, password);
       if (msg === "success") {
-        toast.success("Check your email to verify your account");
+        toast.success("Identity initialized! Synchronizing session...");
+        await login(email, password);
+        navigate(redirectTo);
       } else if (msg === "failure") {
         toast.error("Please wait before requesting another verification email");
       } else {

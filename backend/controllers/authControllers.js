@@ -54,27 +54,15 @@ export async function signup(req, res) {
       email: email,
       name: name,
       password: hashedPassword,
+      isVerified: true,
     });
   } else {
     await Account.update(
-      { name: name, password: hashedPassword },
+      { name: name, password: hashedPassword, isVerified: true },
       { where: { email: email } }
     );
   }
-  userData = await Account.findOne({ where: { email: email } });
-  const timeDiff = parseInt(
-    (new Date().getTime() - userData.verificationLinkSendingTime) / 1000
-  );
-  if (timeDiff <= 30) {
-    return res.status(200).json({ msg: "failure", timeLeft: 30 - timeDiff });
-  } else {
-    await Account.update(
-      { verificationLinkSendingTime: new Date().getTime() },
-      { where: { email: email } }
-    );
-    sendVerificationLink(email, userData._id);
-    return res.status(200).json({ msg: "success" });
-  }
+  return res.status(200).json({ msg: "success" });
 }
 
 export async function emailVerification(req, res) {
