@@ -9,6 +9,14 @@ export async function getTeam(projectId: string) {
   return data.data;
 }
 
+export async function createInvite(projectId: string) {
+  const { data } = await apiClient.post<{
+    success: boolean;
+    data: { inviteLink: string; token: string };
+  }>(`/api/v1/projects/${projectId}/team/invite`, {});
+  return data.data;
+}
+
 export async function generateLegacyInvite(projectId: string) {
   const { data } = await apiClient.post<{
     success: boolean;
