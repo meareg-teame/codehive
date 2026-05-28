@@ -1,12 +1,12 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-import { authenticateToken } from "../middleware/authenticateToken.js";
-import { requireRole } from "../middleware/requireRole.js";
+import { authenticateToken } from "../middlewares/authenticateToken.js";
+import { requireRole } from "../middlewares/requireRole.js";
 import Project from "../models/Project.js";
 import Account from "../models/Account.js";
 import Session from "../models/Session.js";
 import { Op } from "sequelize";
-
+import { getOverview, getProjectAnalytics } from "../controllers/analyticsControllers.js";
 const router = express.Router();
 
 // Auth routes
@@ -209,68 +209,11 @@ router.get("/v1/projects/:id/sessions", authenticateToken, async (req, res) => {
 });
 
 // Analytics routes
-router.get("/v1/analytics/overview", authenticateToken, async (req, res) => {
-  try {
-    const user = await Account.findByPk(req.user.userId);
-    if (!user) {
-      return res.status(404).json({ error: true, message: "User not found" });
-    }
-    
-    // Get user's projects
-    const projects = await Project.findAll({
-      where: {
-        [Op.or]: [
-          { owner: user.email },
-          { collaborators: { [Op.contains]: [user.email] } },
-        ],
-      },
-    });
-    
-    // Get sessions for user's projects
-    const projectIds = projects.map(p => p._id);
-    const sessions = await Session.findAll({
-      where: { projectId: { [Op.in]: projectIds } },
-    });
-    
-    // Calculate stats
-    const totalSessions = sessions.length;
-    const totalTimeInSessions = sessions.reduce((acc, s) => {
-      if (s.endedAt && s.startedAt) {
-        return acc + (new Date(s.endedAt) - new Date(s.startedAt)) / 1000;
-      }
-      return acc;
-    }, 0);
-    
-    // Most used language
-    const languageCounts = {};
-    projects.forEach(p => {
-      if (p.language) {
-        languageCounts[p.language] = (languageCounts[p.language] || 0) + 1;
-      }
-    });
-    const mostUsedLanguage = Object.entries(languageCounts)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    
-    const totalExecutions = sessions.reduce((acc, s) => acc + (s.executionsRun || 0), 0);
-    
-    res.json({
-      success: true,
-      data: {
-        totalSessions,
-        totalTimeInSessions: Math.round(totalTimeInSessions),
-        mostUsedLanguage,
-        totalExecutions,
-        projectCount: projects.length
-      }
-    });
-  } catch (error) {
-    console.error("Analytics overview error:", error);
-    res.status(500).json({ error: true, message: "Failed to fetch analytics" });
-  }
-});
+router.get("/v1/analytics/overview", authenticateToken, getOverview);
+// analytics overview handled by controller
 
-router.get("/v1/analytics/projects/:id", authenticateToken, async (req, res) => {
-  try {
+router.get("/v1/analytics/projects/:id", authenticateToken, getProjectAnalytics);
+
     const project = await Project.findByPk(req.params.id);
     if (!project) {
       return res.status(404).json({ error: true, message: "Project not found" });

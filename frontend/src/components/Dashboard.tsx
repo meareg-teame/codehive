@@ -59,6 +59,7 @@ type ProjectSummary = {
 function Dashboard() {
   const navigate = useNavigate();
   const { user: userData } = useAuth();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userProjects, setUserProjects] = useState<ProjectSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProjectNameAvailable, setIsProjectNameAvailable] = useState(true);
@@ -100,6 +101,7 @@ function Dashboard() {
       toast.success("New project initialized");
       setProjectName("");
       setProjectLanguage("");
+      setIsDialogOpen(false);
       fetchProjects();
     } catch (error) {
       toast.error("Failed to create project");
@@ -180,7 +182,7 @@ function Dashboard() {
                 <List className="w-5 h-5" />
               </Button>
             </div>
-            <Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -215,23 +217,19 @@ function Dashboard() {
                   </div>
                   <div>
                     <Label htmlFor="projectLanguage">Language</Label>
-                    <Select
+                    <select
+                      id="projectLanguage"
                       value={projectLanguage}
-                      onValueChange={(value) => setProjectLanguage(value as Language)}
+                      onChange={(e) => setProjectLanguage(e.target.value as Language)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <SelectTrigger id="projectLanguage">
-                        <SelectValue placeholder="Select a language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {PROJECT_LANGUAGE_OPTIONS.map((lang) => (
-                            <SelectItem key={lang.value} value={lang.value}>
-                              {lang.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                      <option value="" disabled>Select a language</option>
+                      {PROJECT_LANGUAGE_OPTIONS.map((lang) => (
+                        <option key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex justify-end gap-2">
                     <DialogClose asChild>
@@ -301,21 +299,24 @@ function Dashboard() {
 
 const ProjectCard = ({ project, getProjectTimeLabel }: { project: ProjectSummary, getProjectTimeLabel: (p: ProjectSummary) => string }) => {
   const languageInfo = LANGUAGE_CATALOG[project.language];
+  const label = languageInfo?.label || project.language;
   return (
     <div className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
       <div className="p-4 flex-grow">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <img src={languageInfo.icon} alt={languageInfo.name} className="w-6 h-6" />
+            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Code className="w-4 h-4" />
+            </div>
             <h3 className="font-semibold text-lg truncate">{project.name}</h3>
           </div>
           <Badge variant={project.visibility === 'public' ? 'secondary' : 'outline'}>
             {project.visibility === 'public' ? <Globe className="w-3 h-3 mr-1.5" /> : <Lock className="w-3 h-3 mr-1.5" />}
-            {project.visibility}
+            {project.visibility || "private"}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-2">
-          A collaborative project for {languageInfo.name}.
+          A collaborative project for {label}.
         </p>
       </div>
       <div className="border-t border-border p-4 text-xs text-muted-foreground flex items-center justify-between">
@@ -334,19 +335,22 @@ const ProjectCard = ({ project, getProjectTimeLabel }: { project: ProjectSummary
 
 const ProjectListItem = ({ project, getProjectTimeLabel }: { project: ProjectSummary, getProjectTimeLabel: (p: ProjectSummary) => string }) => {
   const languageInfo = LANGUAGE_CATALOG[project.language];
+  const label = languageInfo?.label || project.language;
   return (
     <div className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center p-4">
       <div className="flex items-center gap-4 flex-grow">
-        <img src={languageInfo.icon} alt={languageInfo.name} className="w-8 h-8" />
+        <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+          <Code className="w-5 h-5" />
+        </div>
         <div className="flex-grow">
           <h3 className="font-semibold text-lg">{project.name}</h3>
-          <p className="text-sm text-muted-foreground">{getProjectTimeLabel(project)}</p>
+          <p className="text-xs text-muted-foreground">{label} • {getProjectTimeLabel(project)}</p>
         </div>
       </div>
       <div className="flex items-center gap-6 text-sm text-muted-foreground">
         <Badge variant={project.visibility === 'public' ? 'secondary' : 'outline'} className="hidden sm:flex">
           {project.visibility === 'public' ? <Globe className="w-3 h-3 mr-1.5" /> : <Lock className="w-3 h-3 mr-1.5" />}
-          {project.visibility}
+          {project.visibility || "private"}
         </Badge>
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4" />

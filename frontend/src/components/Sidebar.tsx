@@ -1,14 +1,7 @@
+import { useState } from "react";
 import { Menu, Command, ChevronRight, LogOut, Key, Settings, User, LayoutGrid, Share2, ShieldCheck, Activity } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -20,7 +13,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -30,11 +22,17 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, changePassword } = useAuth();
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSecurityOpen, setIsSecurityOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   const userData = user ?? {
     name: "Local User",
     email: "local@codehive.dev",
     photoUrl: "",
+    role: "user",
   };
 
   const displayName = userData.name?.trim() || "Local User";
@@ -96,105 +94,182 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full h-16 flex items-center gap-3 px-3 rounded-2xl border border-white/0 hover:border-white/5 hover:bg-white/5 transition-all">
-              <Avatar className="h-10 w-10 border border-white/10">
-                <AvatarImage src={userData.photoUrl} />
-                <AvatarFallback className="text-xs font-bold bg-accent">{displayInitials}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col items-start truncate">
-                <span className="text-xs font-black uppercase italic truncate w-full text-left">{displayName}</span>
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider truncate w-full text-left">{displayEmail}</span>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
+      <div className="p-4 border-t border-white/5 relative">
+        <Button 
+          variant="ghost" 
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="w-full h-16 flex items-center gap-3 px-3 rounded-2xl border border-white/0 hover:border-white/5 hover:bg-white/5 transition-all"
+        >
+          <Avatar className="h-10 w-10 border border-white/10">
+            <AvatarImage src={userData.photoUrl} />
+            <AvatarFallback className="text-xs font-bold bg-accent">{displayInitials}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col items-start truncate">
+            <span className="text-xs font-black uppercase italic truncate w-full text-left">{displayName}</span>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider truncate w-full text-left">{displayEmail}</span>
+          </div>
+        </Button>
 
-          <DropdownMenuContent
-            align="start"
-            side="right"
-            sideOffset={12}
-            className="w-64 bg-popover/80 backdrop-blur-xl border border-white/5 shadow-2xl rounded-2xl p-2 ml-2"
-          >
-            <DropdownMenuLabel className="px-3 py-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Identity Profile</span>
-            </DropdownMenuLabel>
+        {/* Custom Dropdown Menu */}
+        {isDropdownOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
             
-            <DropdownMenuItem className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl focus:bg-primary focus:text-primary-foreground group">
-              <User className="w-4 h-4" />
-              <span className="font-bold uppercase tracking-wider italic">Profile Protocol</span>
-            </DropdownMenuItem>
+            <div className="absolute bottom-20 left-4 right-4 z-50 bg-popover border border-white/5 shadow-2xl rounded-2xl p-2 flex flex-col space-y-1 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="px-3 py-2 border-b border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">Identity Profile</span>
+              </div>
+              
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  setIsProfileOpen(true);
+                }}
+                className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl hover:bg-primary hover:text-primary-foreground transition-colors w-full text-left font-bold uppercase tracking-wider italic"
+              >
+                <User className="w-4 h-4" />
+                <span>Profile Protocol</span>
+              </button>
 
-            <Dialog>
-              <DialogTrigger asChild>
-                <div className="relative flex cursor-default select-none items-center gap-2 rounded-xl px-3 py-2.5 text-xs outline-none transition-colors hover:bg-primary hover:text-primary-foreground">
-                  <Key className="w-4 h-4" />
-                  <span className="font-bold uppercase tracking-wider italic">Security Keys</span>
-                </div>
-              </DialogTrigger>
-              <DialogContent className="bg-popover border border-white/5 text-foreground max-w-sm rounded-[2rem] shadow-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">Handshake Protocol</DialogTitle>
-                  <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
-                    Update your access credentials
-                  </DialogDescription>
-                </DialogHeader>
-                <form
-                  className="space-y-6 mt-4"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.currentTarget);
-                    try {
-                      await changePassword(
-                        String(formData.get("oldPassword") || ""),
-                        String(formData.get("newPassword") || "")
-                      );
-                      toast.success("Security Handshake Successful");
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, "Protocol Failure"));
-                    }
-                  }}
-                >
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Token</label>
-                    <Input name="oldPassword" type="password" className="bg-white/5 border-white/5 h-12 rounded-xl text-sm" required />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">New Provision</label>
-                    <Input name="newPassword" type="password" className="bg-white/5 border-white/5 h-12 rounded-xl text-sm" required />
-                  </div>
-                  <Button type="submit" className="w-full bg-primary text-primary-foreground font-black h-12 rounded-xl shadow-lg shadow-primary/20 uppercase tracking-widest text-xs">
-                    Confirm Provisioning
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  setIsSecurityOpen(true);
+                }}
+                className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl hover:bg-primary hover:text-primary-foreground transition-colors w-full text-left font-bold uppercase tracking-wider italic"
+              >
+                <Key className="w-4 h-4" />
+                <span>Security Keys</span>
+              </button>
 
-            <DropdownMenuItem className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl focus:bg-primary focus:text-primary-foreground">
-              <Settings className="w-4 h-4" />
-              <span className="font-bold uppercase tracking-wider italic">Preferences</span>
-            </DropdownMenuItem>
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  setIsPreferencesOpen(true);
+                }}
+                className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl hover:bg-primary hover:text-primary-foreground transition-colors w-full text-left font-bold uppercase tracking-wider italic"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Preferences</span>
+              </button>
 
-            <DropdownMenuSeparator className="bg-white/5 my-2" />
+              <div className="bg-white/5 h-[1px] my-2" />
 
-            <DropdownMenuItem
-              className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl text-destructive focus:bg-destructive/10 focus:text-destructive"
-              onClick={async () => {
-                try {
-                  await logout();
-                  navigate("/");
-                } catch (e) {
-                  console.error(e);
-                }
-              }}
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="font-bold uppercase tracking-wider italic">Terminate Session</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsDropdownOpen(false);
+                  try {
+                    await logout();
+                    navigate("/");
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="flex items-center gap-2 text-xs py-2.5 px-3 rounded-xl text-destructive hover:bg-destructive/10 transition-colors w-full text-left font-bold uppercase tracking-wider italic"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Terminate Session</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Profile Dialog */}
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="bg-popover border border-white/5 text-foreground max-w-sm rounded-[2rem] shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">Identity Card</DialogTitle>
+            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+              Your CodeHive access profile info
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl">
+              <Avatar className="h-16 w-16 border border-white/10">
+                <AvatarImage src={userData.photoUrl} />
+                <AvatarFallback className="text-lg font-bold bg-accent">{displayInitials}</AvatarFallback>
+              </Avatar>
+              <div>
+                <h4 className="font-black text-lg uppercase italic">{displayName}</h4>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">{displayEmail}</p>
+              </div>
+            </div>
+            <div className="p-4 border border-white/5 rounded-2xl space-y-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <p>Clearance Level: <span className="text-foreground">Developer (L1)</span></p>
+              <p>Role: <span className="text-foreground">{userData.role || "User"}</span></p>
+              <p>Status: <span className="text-emerald-500 font-black">Active</span></p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Security Keys Dialog */}
+      <Dialog open={isSecurityOpen} onOpenChange={setIsSecurityOpen}>
+        <DialogContent className="bg-popover border border-white/5 text-foreground max-w-sm rounded-[2rem] shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">Handshake Protocol</DialogTitle>
+            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+              Update your access credentials
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-6 mt-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              try {
+                await changePassword(
+                  String(formData.get("oldPassword") || ""),
+                  String(formData.get("newPassword") || "")
+                );
+                toast.success("Security Handshake Successful");
+                setIsSecurityOpen(false);
+              } catch (err) {
+                toast.error(getErrorMessage(err, "Protocol Failure"));
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Token</label>
+              <Input name="oldPassword" type="password" className="bg-white/5 border-white/5 h-12 rounded-xl text-sm" required />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">New Provision</label>
+              <Input name="newPassword" type="password" className="bg-white/5 border-white/5 h-12 rounded-xl text-sm" required />
+            </div>
+            <Button type="submit" className="w-full bg-primary text-primary-foreground font-black h-12 rounded-xl shadow-lg shadow-primary/20 uppercase tracking-widest text-xs">
+              Confirm Provisioning
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preferences Dialog */}
+      <Dialog open={isPreferencesOpen} onOpenChange={setIsPreferencesOpen}>
+        <DialogContent className="bg-popover border border-white/5 text-foreground max-w-sm rounded-[2rem] shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter">System Config</DialogTitle>
+            <DialogDescription className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+              Personalize interface and telemetry
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl text-xs font-bold uppercase tracking-widest">
+              <span>Dynamic Mode</span>
+              <span className="text-primary font-black">Activated (Dark)</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-white/5 rounded-xl text-xs font-bold uppercase tracking-widest">
+              <span>Telemetry</span>
+              <span className="text-emerald-500 font-black">Online</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
