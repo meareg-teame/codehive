@@ -4,7 +4,7 @@ import { isUnauthorizedError } from "@/api/client";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { Sidebar, MobileSidebar } from "./Sidebar";
-import { Bot, CircleAlert, Cloud, Plus, Radio, Search, LayoutGrid, List, MoreVertical, ExternalLink, Trash2, Calendar, Clock, Lock, Globe, Users, Menu } from "lucide-react";
+import { Bot, CircleAlert, Cloud, Plus, Radio, Search, LayoutGrid, List, MoreVertical, ExternalLink, Trash2, Calendar, Clock, Lock, Globe, Users, Menu, Code } from "lucide-react";
 import { Badge } from "./ui/badge";
 import {
   Dialog,
