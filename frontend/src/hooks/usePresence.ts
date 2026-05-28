@@ -23,18 +23,14 @@ export function usePresence(
 ) {
   const [onlineUsers, setOnlineUsers] = useState(1);
   const gutterDecorationsRef = useRef<string[]>([]);
+  const updateScheduledRef = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
+  const isUpdatingDecorationsRef = useRef(false);
   
   useEffect(() => {
     if (!provider || !editor || !ydoc) return;
-
-    // Assign color
     const colorIndex = getColorIndex(userName || "guest");
     const myColor = CURSOR_COLORS[colorIndex];
-
-    provider.awareness.setLocalStateField("user", {
-      name: userName,
-      color: myColor,
-    });
 
     const handleAwarenessUpdate = () => {
       const states = Array.from(provider.awareness.getStates().values());
@@ -64,18 +60,39 @@ export function usePresence(
     let timeoutIds: NodeJS.Timeout[] = [];
     const heatmapMap = new Map<number, { userId: string, color: string, timestamp: number }>();
 
-    const updateGutterDecorations = () => {
-      const newDecorations: monaco.editor.IModelDeltaDecoration[] = [];
-      for (const [line, data] of heatmapMap.entries()) {
-        newDecorations.push({
-          range: new monaco.Range(line, 1, line, 1),
-          options: {
-            isWholeLine: false,
-            linesDecorationsClassName: `gutter-dot-${data.color.replace('#', '')}`,
-          }
-        });
+    const applyGutterDecorations = () => {
+      if (isUpdatingDecorationsRef.current) {
+        // Try again next frame
+        scheduleGutterDecorations();
+        return;
       }
-      gutterDecorationsRef.current = editor.deltaDecorations(gutterDecorationsRef.current, newDecorations);
+      
+      isUpdatingDecorationsRef.current = true;
+      
+      try {
+        const newDecorations: monaco.editor.IModelDeltaDecoration[] = [];
+        for (const [line, data] of heatmapMap.entries()) {
+          newDecorations.push({
+            range: new monaco.Range(line, 1, line, 1),
+            options: {
+              isWholeLine: false,
+              linesDecorationsClassName: `gutter-dot-${data.color.replace('#', '')}`,
+            }
+          });
+        }
+        gutterDecorationsRef.current = editor.deltaDecorations(gutterDecorationsRef.current, newDecorations);
+      } finally {
+        isUpdatingDecorationsRef.current = false;
+      }
+    };
+
+    const scheduleGutterDecorations = () => {
+      if (updateScheduledRef.current) return;
+      updateScheduledRef.current = true;
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        updateScheduledRef.current = false;
+        applyGutterDecorations();
+      });
     };
 
     const disposable = editor.onDidChangeModelContent((e) => {
@@ -111,13 +128,13 @@ export function usePresence(
           document.head.appendChild(style);
         }
         
-        updateGutterDecorations();
+        scheduleGutterDecorations();
 
         const tId = setTimeout(() => {
           const entry = heatmapMap.get(line);
           if (entry && Date.now() - entry.timestamp >= 9900) {
             heatmapMap.delete(line);
-            updateGutterDecorations();
+            scheduleGutterDecorations();
           }
         }, 10000);
         timeoutIds.push(tId);
@@ -125,10 +142,12 @@ export function usePresence(
     });
 
     return () => {
-      provider.awareness.setLocalState(null);
       provider.awareness.off("change", handleAwarenessUpdate);
       disposable.dispose();
       timeoutIds.forEach(clearTimeout);
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
       if (editor) {
         editor.deltaDecorations(gutterDecorationsRef.current, []);
       }

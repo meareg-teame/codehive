@@ -33,6 +33,101 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     setPeers(new Map(peersRef.current));
   };
 
+  const getReadableMediaError = (error: unknown) => {
+    if (!(error instanceof DOMException)) {
+      return "Could not access camera or microphone.";
+    }
+
+    switch (error.name) {
+      case "NotAllowedError":
+      case "SecurityError":
+        return "Camera or microphone permission was denied.";
+      case "NotFoundError":
+      case "DevicesNotFoundError":
+        return "No camera or microphone was found on this device.";
+      case "NotReadableError":
+      case "TrackStartError":
+        return "Camera or microphone is already in use by another app or browser tab.";
+      case "OverconstrainedError":
+      case "ConstraintNotSatisfiedError":
+        return "Requested camera or microphone settings are not supported on this device.";
+      case "AbortError":
+        return "The browser could not start the selected camera or microphone.";
+      default:
+        return `${error.name}: could not access camera or microphone.`;
+    }
+  };
+
+  const getPreferredMediaStream = async () => {
+    const attempts: Array<{
+      constraints: MediaStreamConstraints;
+      onSuccess: (stream: MediaStream) => void;
+      fallbackMessage?: string;
+    }> = [
+      {
+        constraints: {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user",
+          },
+        },
+        onSuccess: (stream) => {
+          setIsCameraOff(stream.getVideoTracks().length === 0);
+          setIsMuted(stream.getAudioTracks().length === 0);
+        },
+      },
+      {
+        constraints: {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          video: false,
+        },
+        onSuccess: () => {
+          setIsCameraOff(true);
+          setIsMuted(false);
+          setCallError("Camera unavailable. Joined with microphone only.");
+        },
+      },
+      {
+        constraints: {
+          audio: false,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user",
+          },
+        },
+        onSuccess: () => {
+          setIsCameraOff(false);
+          setIsMuted(true);
+          setCallError("Microphone unavailable. Joined with camera only.");
+        },
+      },
+    ];
+
+    let lastError: unknown = null;
+    for (const attempt of attempts) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(attempt.constraints);
+        attempt.onSuccess(stream);
+        return stream;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
+  };
+
   const createPeer = (
     userToSignal: string,
     callerId: string,
@@ -106,31 +201,23 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
   const joinCall = async () => {
     if (isInCall) return;
     setCallError(null);
-    let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setIsCameraOff(false);
-    } catch (err: any) {
-      if (err.name === "NotAllowedError" || err.name === "NotFoundError") {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          setIsCameraOff(true);
-          setCallError("Camera permission denied or not found. Using audio only.");
-        } catch (audioErr) {
-          setCallError("Permission denied for both camera and microphone.");
-          return;
-        }
-      } else {
-        setCallError("An error occurred while accessing media devices.");
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCallError("This browser does not support camera or microphone access.");
         return;
       }
+
+      const stream = await getPreferredMediaStream();
+
+      setLocalStream(stream);
+      streamRef.current = stream;
+      setIsInCall(true);
+
+      socket.emit("webrtc:join-call", { roomId, userId, userName });
+    } catch (error) {
+      setCallError(getReadableMediaError(error));
+      return;
     }
-
-    setLocalStream(stream);
-    streamRef.current = stream;
-    setIsInCall(true);
-
-    socket.emit("webrtc:join-call", { roomId, userId, userName });
   };
 
   const leaveCall = useCallback(() => {
