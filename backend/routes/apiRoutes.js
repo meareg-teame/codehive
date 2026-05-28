@@ -276,4 +276,56 @@ router.post("/v1/projects/:id/team/invite", authenticateToken, async (req, res) 
   }
 });
 
-export default router;
+// Public: resolve an invite token to project metadata (no auth required)
+router.get("/join-info/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: true, message: "Invalid or expired invite link" });
+    }
+
+    const { projectId, invitedBy } = payload;
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      return res.status(404).json({ error: true, message: "Project not found" });
+    }
+
+    let inviterName = null;
+    if (invitedBy) {
+      const inviter = await Account.findByPk(invitedBy);
+      inviterName = inviter?.name || inviter?.email || null;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        projectId: project._id,
+        projectName: project.name,
+        language: project.language,
+        visibility: project.visibility,
+        inviterName,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Failed to resolve invite" });
+  }
+});
+
+// Generate invite for legacy cookie-auth users
+router.post("/v1/projects/:id/team/generate-invite", authenticateToken, async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    // reuse the generateInvite controller logic (imported below)
+    // We'll call the controller directly
+    const { generateInvite } = require("../controllers/projectControllers.js");
+    await generateInvite({ ...req, body: { projectId } }, res);
+  } catch (error) {
+    console.error("generate-invite route error:", error);
+    res.status(500).json({ error: true, message: "Failed to generate invite" });
+  }
+});
+
+

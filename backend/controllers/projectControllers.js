@@ -455,3 +455,45 @@ export async function joinProject(req, res) {
     return res.status(400).json({ msg: "Invalid or expired invite token" });
   }
 }
+
+export async function generateInvite(req, res) {
+  const { projectId } = req.body;
+  try {
+    const userEmail = getCurrentUser(req);
+
+    if (userEmail === DEV_USER) {
+      // In dev mode, still generate a usable link for testing
+      const inviteToken = jwt.sign(
+        { projectId, invitedBy: "dev" },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+      const inviteLink = `${frontendUrl}/join/${inviteToken}`;
+      return res.status(200).json({ msg: "Invite generated", inviteLink, token: inviteToken });
+    }
+
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      return res.status(404).json({ msg: "Project not found" });
+    }
+
+    // Find user account to get their ID for the token
+    const userAccount = await Account.findOne({ where: { email: userEmail } });
+    const invitedById = userAccount?._id || userEmail;
+
+    const inviteToken = jwt.sign(
+      { projectId: project._id, invitedBy: invitedById },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const inviteLink = `${frontendUrl}/join/${inviteToken}`;
+
+    return res.status(200).json({ msg: "Invite generated", inviteLink, token: inviteToken });
+  } catch (error) {
+    console.error("generateInvite error:", error);
+    return res.status(500).json({ msg: "Failed to generate invite link" });
+  }
+}
