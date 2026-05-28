@@ -3,7 +3,7 @@ import axios, { type AxiosError } from "axios";
 export const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:8080";
 
-const TOKEN_STORAGE_KEY = "codehive_v1_token";
+const TOKEN_STORAGE_KEY = "codecollab_v1_token";
 
 export const apiClient = axios.create({
   baseURL: BACKEND_URL,

@@ -29,14 +29,14 @@ export function Sidebar() {
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   const userData = user ?? {
-    name: "Local User",
-    email: "local@codehive.dev",
+    name: "Guest User",
+    email: "local@codecollab.dev",
     photoUrl: "",
     role: "user",
   };
 
-  const displayName = userData.name?.trim() || "Local User";
-  const displayEmail = userData.email?.trim() || "local@codehive.dev";
+  const displayName = userData.name?.trim() || "Guest User";
+  const displayEmail = userData.email?.trim() || "local@codecollab.dev";
   const nameParts = displayName.split(/\s+/).filter(Boolean);
   const displayInitials =
     nameParts.length === 1
@@ -58,7 +58,7 @@ export function Sidebar() {
             <Command className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
-            <span className="font-black text-sm tracking-tighter uppercase italic">CodeHive</span>
+            <span className="font-black text-sm tracking-tighter uppercase italic">CodeCollab</span>
             <span className="text-[8px] font-bold text-primary tracking-[0.3em] uppercase">Enterprise</span>
           </div>
         </Link>

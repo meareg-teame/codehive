@@ -7,9 +7,9 @@ export default async function sendVerificationLink(receiverEmail, id) {
   const msg = {
     to: receiverEmail,
     from: process.env.SENDER_EMAIL,
-    subject: "CodeHive | Email verification",
+    subject: "CodeCollab | Email verification",
     html: `
-      <h1 style="font-family:Segoe UI; color:#512FA2">CodeHive | Email Verification</h1>
+      <h1 style="font-family:Segoe UI; color:#512FA2">CodeCollab | Email Verification</h1>
 <p style="font-family:Segoe UI">Click on the link below to verify your email</p>
 <p style="font-family:Segoe UI; font-weight:bold; font-size:0.85rem">(The link is valid for 10 minutes)</p>
 <button style="border-radius:0.5rem; border:2px solid black; padding:5px; background-color:#512FA2">

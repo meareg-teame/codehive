@@ -20,10 +20,9 @@ import { isUserAllowed } from "../middlewares/isUserAllowed.js";
 
 const router = express.Router();
 //dashboard part
-router.post("/create-project", createProject);
-router.post("/get-projects", getProjects);
-router.post("/delete-project", deleteProject);
-router.post("/get-projects", getProjects);
+router.post("/create-project", checkLogin, createProject);
+router.post("/get-projects", checkLogin, getProjects);
+router.post("/delete-project", checkLogin, deleteProject);
 //Editor part
 router.post(
   "/get-project-details",

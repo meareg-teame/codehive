@@ -5,7 +5,7 @@ import axios from "axios";
 import { executeWithJudge0 } from "../services/judge0.js";
 import { Op } from "sequelize";
 
-const DEV_USER = "local@codehive.dev";
+const DEV_USER = "local@codecollab.dev";
 const devProjects = new Map();
 
 // Maps language key → default filename for new projects
@@ -27,11 +27,8 @@ const DEFAULT_FILE_MAP = {
 };
 
 function getCurrentUser(req) {
-  try {
-    return jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
-  } catch (e) {
-    return DEV_USER;
-  }
+  const decoded = jwt.verify(req.cookies.user, process.env.JWT_SECRET);
+  return decoded.user;
 }
 
 function buildDevProject({ projectName, language, visibility, owner }) {

@@ -5,15 +5,14 @@ import sendVerificationLink from "../services/sendVerificationLink.js";
 import jwt from "jsonwebtoken";
 import admin from "../lib/firebase.js";
 
-const DEV_USER = "local@codehive.dev";
+const DEV_USER = "local@codecollab.dev";
 
 export async function user(req, res) {
   try {
-    const user = jwt.verify(req.cookies.user, process.env.JWT_SECRET);
+    jwt.verify(req.cookies.user, process.env.JWT_SECRET);
     return res.status(200).json({});
   } catch (e) {
-    // Bypassing auth for development: return success anyway
-    return res.status(200).json({ msg: "Bypassed auth for development" });
+    return res.status(401).json({ msg: "unauthorized" });
   }
 }
 
@@ -97,24 +96,29 @@ export async function logout(req, res) {
 }
 
 export async function userInfo(req, res) {
-  let user;
+  if (!req.cookies.user) {
+    return res.status(401).json({ msg: "unauthorized" });
+  }
   try {
-    user = await jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
+    const decoded = jwt.verify(req.cookies.user, process.env.JWT_SECRET);
+    const user = decoded.user;
+    if (user === DEV_USER) {
+      return res.json({
+        userData: {
+          name: "Guest User",
+          email: DEV_USER,
+          photoUrl: "",
+        },
+      });
+    }
+    const userData = await Account.findOne({ where: { email: user } });
+    if (!userData) {
+      return res.status(404).json({ msg: "user not found" });
+    }
+    return res.json({ userData });
   } catch (e) {
-    user = DEV_USER;
+    return res.status(401).json({ msg: "unauthorized" });
   }
-
-  if (user === DEV_USER) {
-    return res.json({
-      userData: {
-        name: "Local User",
-        email: DEV_USER,
-        photoUrl: "",
-      },
-    });
-  }
-  const userData = await Account.findOne({ where: { email: user } });
-  return res.json({ userData });
 }
 
 export async function changePassword(req, res) {
@@ -168,7 +172,7 @@ export async function googleOauth(req, res) {
 }
 
 export async function guestLogin(req, res) {
-  const email = "local@codehive.dev";
+  const email = "local@codecollab.dev";
   const token = jwt.sign({ user: email }, process.env.JWT_SECRET);
   const isProduction = !(process.env.BACKEND_URL === "http://localhost:8080");
   

@@ -28,8 +28,8 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const FALLBACK_USER: AuthUser = {
-  name: "Local User",
-  email: "local@codehive.dev",
+  name: "Guest User",
+  email: "local@codecollab.dev",
   photoUrl: "",
 };
 
