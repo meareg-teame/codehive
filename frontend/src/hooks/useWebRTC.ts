@@ -475,7 +475,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     joinCall,
     leaveCall,
     toggleMute,
-    toggleCamera,
+    toggleCamera: toggleCameraSafe,
     toggleScreenShare,
     callError,
     callParticipantCount,
