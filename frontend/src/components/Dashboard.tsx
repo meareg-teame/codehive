@@ -254,6 +254,7 @@ function Dashboard() {
           <AnimatePresence>
             {filteredProjects.length > 0 ? (
               <motion.div
+                key="projects-grid"
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
@@ -279,6 +280,7 @@ function Dashboard() {
               </motion.div>
             ) : (
               <motion.div
+                key="empty-state"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center justify-center h-full text-center"
