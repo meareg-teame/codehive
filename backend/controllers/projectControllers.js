@@ -8,6 +8,24 @@ import { Op } from "sequelize";
 const DEV_USER = "local@codehive.dev";
 const devProjects = new Map();
 
+// Maps language key → default filename for new projects
+const DEFAULT_FILE_MAP = {
+  nodejs:     "main.js",
+  typescript: "main.ts",
+  python:     "main.py",
+  java:       "Main.java",
+  c:          "main.c",
+  cpp:        "main.cpp",
+  csharp:     "Program.cs",
+  go:         "main.go",
+  rust:       "main.rs",
+  ruby:       "main.rb",
+  php:        "index.php",
+  kotlin:     "Main.kt",
+  swift:      "main.swift",
+  bash:       "script.sh",
+};
+
 function getCurrentUser(req) {
   try {
     return jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
@@ -47,12 +65,14 @@ export async function createProject(req, res) {
     return res.status(200).json({ msg: "project created", project });
   }
 
+  const defaultFileName = DEFAULT_FILE_MAP[language] || "main.txt";
   await Project.create({
     name: projectName,
     language: language,
     visibility: visibility,
     owner: user,
     collaborators: [user],
+    files: [{ name: defaultFileName, content: "" }],
     creationTime: new Date().getTime(),
   });
   return res.status(200).json({ msg: "project created" });
@@ -121,17 +141,15 @@ export async function createFile(req, res) {
       .json({ msg: "new file created", projectDetails: projectData });
   }
 
-  // console.log(req.body);
   let projectData = await Project.findByPk(projectId);
   if (!projectData) {
     return res.status(404).json({ msg: "project not found" });
   }
-  const files = projectData.files;
-  files.push({
-    name: fileName,
-    content: "",
-  });
+  // Clone the array so Sequelize detects the JSONB change
+  const files = [...(projectData.files || []), { name: fileName, content: "" }];
   await projectData.update({ files });
+  projectData.changed("files", true);
+  await projectData.save();
   const io = req.app.get("io");
   io.emit("updated files", { projectDetails: projectData });
   res
@@ -280,17 +298,16 @@ export async function saveFile(req, res) {
   if (!projectData) {
     return res.status(404).json({ msg: "project not found" });
   }
-  const files = projectData.files;
-  for (let file of files) {
-    if (file.name === fileName) {
-      file.content = code;
-      break;
-    }
-  }
+  // Clone the array so Sequelize detects the JSONB mutation
+  const files = (projectData.files || []).map((file) =>
+    file.name === fileName ? { ...file, content: code } : file
+  );
   await projectData.update({ files });
+  projectData.changed("files", true);
+  await projectData.save();
   const io = req.app.get("io");
   io.emit("updated files", { projectDetails: projectData, newContent: code });
-  return res.status(200).json({ msg: "file saved", files: files.reverse() });
+  return res.status(200).json({ msg: "file saved", files: [...files].reverse() });
 }
 
 export async function aiExplain(req, res) {

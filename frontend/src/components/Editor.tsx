@@ -384,13 +384,9 @@ function Editor() {
   return (
     <TooltipProvider>
       <div className="flex h-screen bg-background overflow-hidden font-sans selection:bg-primary/30">
-      <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-4">
-             <div className="md:hidden">
-               <MobileSidebar />
-             </div>
              <div className="flex items-center gap-2 text-muted-foreground">
                <LayoutGrid className="w-4 h-4" />
                <ChevronRight className="w-3 h-3" />
