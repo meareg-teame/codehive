@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import Project from "../models/Project.js";
 import Session from "../models/Session.js";
 import CodeDocument from "../models/CodeDocument.js";
@@ -218,8 +219,11 @@ export const createInvite = async (req, res) => {
 
     const userEmail = req.user.email || req.user.user;
     const collaborators = Array.isArray(project.collaborators) ? project.collaborators : [];
+    const collaboratorEmails = collaborators.map((collaborator) =>
+      typeof collaborator === "string" ? collaborator : collaborator?.email || collaborator?.user || ""
+    );
     const isOwner = project.owner === userEmail;
-    const isCollaborator = collaborators.includes(userEmail);
+    const isCollaborator = collaboratorEmails.includes(userEmail);
     if (!isOwner && !isCollaborator) {
       return res.status(403).json({ error: true, message: "You must be a project member to invite others" });
     }
@@ -230,10 +234,11 @@ export const createInvite = async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:5173";
     const inviteLink = `${frontendUrl}/join/${inviteToken}`;
     res.status(200).json({ success: true, data: { inviteLink, token: inviteToken } });
   } catch (error) {
+    console.error("createInvite error:", error);
     res.status(500).json({ error: true, message: error.message });
   }
 };

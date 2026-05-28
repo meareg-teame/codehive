@@ -22,7 +22,7 @@ export async function generateLegacyInvite(projectId: string) {
     success: boolean;
     inviteLink: string;
     token: string;
-  }>(`/v1/projects/${projectId}/team/generate-invite`, {});
+  }>(`/api/v1/projects/${projectId}/team/generate-invite`, {});
   return data;
 }
 

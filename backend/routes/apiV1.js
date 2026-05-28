@@ -40,5 +40,6 @@ router.post("/projects/:id/document", authenticateToken, isUserAllowed, saveDocu
 // Team
 router.get("/projects/:id/team", authenticateToken, isUserAllowed, getTeam);
 router.post("/projects/:id/team/invite", authenticateToken, isUserAllowed, createInvite);
+router.post("/projects/:id/team/generate-invite", authenticateToken, isUserAllowed, createInvite);
 
 export default router;
