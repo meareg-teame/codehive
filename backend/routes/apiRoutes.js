@@ -7,6 +7,7 @@ import Account from "../models/Account.js";
 import Session from "../models/Session.js";
 import { Op } from "sequelize";
 import { getOverview, getProjectAnalytics } from "../controllers/analyticsControllers.js";
+import { generateInvite } from "../controllers/projectControllers.js";
 const router = express.Router();
 
 // Auth routes
@@ -318,14 +319,14 @@ router.get("/join-info/:token", async (req, res) => {
 router.post("/v1/projects/:id/team/generate-invite", authenticateToken, async (req, res) => {
   try {
     const projectId = req.params.id;
-    // reuse the generateInvite controller logic (imported below)
-    // We'll call the controller directly
-    const { generateInvite } = require("../controllers/projectControllers.js");
+    // reuse the generateInvite controller logic
     await generateInvite({ ...req, body: { projectId } }, res);
   } catch (error) {
     console.error("generate-invite route error:", error);
     res.status(500).json({ error: true, message: "Failed to generate invite" });
   }
 });
+
+export default router;
 
 

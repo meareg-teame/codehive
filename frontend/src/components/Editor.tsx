@@ -33,7 +33,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { legacyProjects } from "@/api";
-import { createInvite } from "@/api/v1/team";
+import { createInvite, generateLegacyInvite } from "@/api/v1/team";
 import axios from "axios";
 import { isUnauthorizedError } from "@/api/client";
 import { useSocketOptional } from "@/app/providers/SocketProvider";
@@ -193,15 +193,26 @@ function Editor() {
       if (inviteData && inviteData.inviteLink) {
         copyToClipboard(inviteData.inviteLink);
         toast.success("Invite link generated and copied to clipboard!");
-      } else {
-        throw new Error("Invalid invite data structure");
+        return;
       }
     } catch (err) {
-      console.warn("Failed to generate invite token, using direct sharing link fallback:", err);
-      const directShareLink = `${window.location.origin}/editor/${projectId}`;
-      copyToClipboard(directShareLink);
-      toast.success("Collaboration link copied to clipboard!");
+      console.warn("v1 invite creation failed, trying legacy route...", err);
     }
+
+    try {
+      const legacyData = await generateLegacyInvite(projectId);
+      if (legacyData && legacyData.inviteLink) {
+        copyToClipboard(legacyData.inviteLink);
+        toast.success("Invite link generated and copied to clipboard!");
+        return;
+      }
+    } catch (err) {
+      console.warn("Legacy invite creation failed, falling back to direct sharing link...", err);
+    }
+
+    const directShareLink = `${window.location.origin}/editor/${projectId}`;
+    copyToClipboard(directShareLink);
+    toast.success("Direct link copied to clipboard!");
   };
 
   useEffect(() => {
