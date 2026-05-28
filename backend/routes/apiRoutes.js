@@ -256,23 +256,29 @@ router.post("/v1/projects/:id/team/invite", authenticateToken, async (req, res) 
     if (!project) {
       return res.status(404).json({ error: true, message: "Project not found" });
     }
-    
-    // Only owner can invite
-    if (project.owner !== req.user.email) {
-      return res.status(403).json({ error: true, message: "Only owner can invite members" });
+
+    // Both owner and collaborators can generate invite links
+    const userEmail = req.user.email || req.user.user;
+    const collaborators = Array.isArray(project.collaborators) ? project.collaborators : [];
+    const isOwner = project.owner === userEmail;
+    const isCollaborator = collaborators.includes(userEmail);
+    if (!isOwner && !isCollaborator) {
+      return res.status(403).json({ error: true, message: "You must be a project member to invite others" });
     }
-    
-    // Generate invite token (valid for 24 hours)
+
+    // Generate invite token (valid for 7 days)
     const inviteToken = jwt.sign(
-      { projectId: project._id, invitedBy: req.user.userId },
+      { projectId: project._id, invitedByEmail: userEmail },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
-    
-    const inviteLink = `${process.env.FRONTEND_URL}/join/${inviteToken}`;
-    
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const inviteLink = `${frontendUrl}/join/${inviteToken}`;
+
     res.json({ success: true, data: { inviteLink, token: inviteToken } });
   } catch (error) {
+    console.error("Invite error:", error);
     res.status(500).json({ error: true, message: "Failed to generate invite" });
   }
 });
@@ -288,14 +294,18 @@ router.get("/join-info/:token", async (req, res) => {
       return res.status(400).json({ error: true, message: "Invalid or expired invite link" });
     }
 
-    const { projectId, invitedBy } = payload;
+    const { projectId, invitedByEmail, invitedBy } = payload;
     const project = await Project.findByPk(projectId);
     if (!project) {
       return res.status(404).json({ error: true, message: "Project not found" });
     }
 
     let inviterName = null;
-    if (invitedBy) {
+    // Support both new (email) and old (userId) token formats
+    if (invitedByEmail) {
+      const inviter = await Account.findOne({ where: { email: invitedByEmail } });
+      inviterName = inviter?.name || invitedByEmail || null;
+    } else if (invitedBy) {
       const inviter = await Account.findByPk(invitedBy);
       inviterName = inviter?.name || inviter?.email || null;
     }

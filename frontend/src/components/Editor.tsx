@@ -148,6 +148,9 @@ function Editor() {
   const [roomState, setRoomState] = useState("Initialized");
   const [yjsInstances, setYjsInstances] = useState<YjsInstances | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [inviteGenerating, setInviteGenerating] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   
   const currentLanguage = projectDetails.language;
   const currentLanguageMeta = LANGUAGE_CATALOG[currentLanguage] || LANGUAGE_CATALOG.nodejs;
@@ -188,31 +191,37 @@ function Editor() {
   };
 
   const handleInviteTeam = async () => {
+    setInviteGenerating(true);
+    let link: string | null = null;
     try {
       const inviteData = await createInvite(projectId);
-      if (inviteData && inviteData.inviteLink) {
-        copyToClipboard(inviteData.inviteLink);
-        toast.success("Invite link generated and copied to clipboard!");
-        return;
+      if (inviteData?.inviteLink) link = inviteData.inviteLink;
+    } catch {
+      try {
+        const legacyData = await generateLegacyInvite(projectId);
+        if (legacyData?.inviteLink) link = legacyData.inviteLink;
+      } catch {
+        // all API attempts failed
       }
-    } catch (err) {
-      console.warn("v1 invite creation failed, trying legacy route...", err);
     }
-
-    try {
-      const legacyData = await generateLegacyInvite(projectId);
-      if (legacyData && legacyData.inviteLink) {
-        copyToClipboard(legacyData.inviteLink);
-        toast.success("Invite link generated and copied to clipboard!");
-        return;
-      }
-    } catch (err) {
-      console.warn("Legacy invite creation failed, falling back to direct sharing link...", err);
+    setInviteGenerating(false);
+    if (link) {
+      setInviteLink(link);
+      setIsInviteModalOpen(true);
+    } else {
+      toast.error("Could not generate invite link. Only the project owner can invite members.");
     }
+  };
 
-    const directShareLink = `${window.location.origin}/editor/${projectId}`;
-    copyToClipboard(directShareLink);
-    toast.success("Direct link copied to clipboard!");
+  const copyInviteLink = () => {
+    if (!inviteLink) return;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(inviteLink)
+        .then(() => toast.success("Invite link copied!"))
+        .catch(() => { fallbackCopyToClipboard(inviteLink); });
+    } else {
+      fallbackCopyToClipboard(inviteLink);
+    }
   };
 
   useEffect(() => {
@@ -545,9 +554,15 @@ function Editor() {
                       variant="ghost"
                       size="icon"
                       className="w-6 h-6 rounded-md hover:bg-white/5"
-                      onClick={() => copyToClipboard(window.location.href)}
+                      title="Generate & copy invite link"
+                      disabled={inviteGenerating}
+                      onClick={() => void handleInviteTeam()}
                     >
-                      <Share2 className="w-3.5 h-3.5" />
+                      {inviteGenerating ? (
+                        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                      ) : (
+                        <Share2 className="w-3.5 h-3.5" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -613,10 +628,64 @@ function Editor() {
                        <div className="w-7 h-7 rounded-full border-2 border-background bg-accent flex items-center justify-center text-[10px] font-bold">+{onlineUsers}</div>
                     </div>
                   </div>
-                  <Button variant="outline" className="w-full h-9 rounded-xl border-white/5 text-[11px] font-semibold flex items-center gap-2 bg-accent/20 hover:bg-accent/40 transition-colors" onClick={handleInviteTeam}>
-                    <UserPlus className="w-3.5 h-3.5" />
-                    Invite Team
+                  <Button
+                    variant="outline"
+                    className="w-full h-9 rounded-xl border-white/5 text-[11px] font-semibold flex items-center gap-2 bg-accent/20 hover:bg-accent/40 transition-colors"
+                    disabled={inviteGenerating}
+                    onClick={() => void handleInviteTeam()}
+                  >
+                    {inviteGenerating ? (
+                      <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                    ) : (
+                      <UserPlus className="w-3.5 h-3.5" />
+                    )}
+                    {inviteGenerating ? "Generating…" : "Invite Team"}
                   </Button>
+
+                  {/* Invite Link Modal */}
+                  {isInviteModalOpen && inviteLink && (
+                    <div
+                      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                      style={{ background: "rgba(0,0,0,0.7)" }}
+                      onClick={() => setIsInviteModalOpen(false)}
+                    >
+                      <div
+                        className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 shadow-2xl p-6 space-y-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <UserPlus className="w-4 h-4 text-primary" />
+                            <h2 className="text-sm font-black uppercase tracking-widest">Invite Link</h2>
+                          </div>
+                          <button
+                            className="text-muted-foreground hover:text-foreground transition-colors text-xs"
+                            onClick={() => setIsInviteModalOpen(false)}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Share this link with collaborators. They must sign in to join.
+                        </p>
+                        <div className="flex gap-2">
+                          <div className="flex-1 min-w-0 bg-neutral-950 border border-white/10 rounded-lg px-3 py-2">
+                            <p className="text-[11px] font-mono text-muted-foreground truncate">{inviteLink}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="shrink-0 h-9 px-3 rounded-lg bg-white text-black hover:bg-neutral-200 font-black text-[11px] uppercase tracking-widest"
+                            onClick={copyInviteLink}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/40 uppercase tracking-widest text-center">
+                          Link expires in 7 days
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </ResizablePanel>
