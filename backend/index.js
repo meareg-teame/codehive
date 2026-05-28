@@ -43,6 +43,7 @@ const isAllowedOrigin = (origin) => {
 
   if (cleanOrigin === cleanFrontendUrl) return true;
   if (cleanOrigin === "https://codehive-gamma.vercel.app") return true;
+  if (cleanOrigin.endsWith(".vercel.app") || cleanOrigin.includes("vercel.app")) return true;
 
   // Allow Vite/dev clients on localhost without hardcoding a single port.
   return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(cleanOrigin);
