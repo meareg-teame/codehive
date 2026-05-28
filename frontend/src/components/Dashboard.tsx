@@ -154,14 +154,14 @@ function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex h-screen mesh-bg text-foreground">
       <Toaster theme="dark" />
       <Sidebar user={userData as UserData} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <header className="flex items-center justify-between p-6 border-b border-white/5 bg-background/50 backdrop-blur-xl z-20">
           <div className="flex items-center gap-4">
             <MobileSidebar user={userData as UserData} />
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -283,12 +283,15 @@ function Dashboard() {
                 key="empty-state"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center justify-center h-full text-center"
+                className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto"
               >
-                <Bot className="w-24 h-24 text-muted-foreground" />
-                <h2 className="mt-6 text-2xl font-semibold">No projects found</h2>
-                <p className="mt-2 text-muted-foreground">
-                  Get started by creating a new project.
+                <div className="w-24 h-24 mb-6 rounded-2xl glass flex items-center justify-center text-primary relative overflow-hidden group">
+                   <div className="absolute inset-0 bg-primary/20 group-hover:bg-primary/30 transition-colors duration-500" />
+                   <Code className="w-10 h-10 relative z-10" />
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">Your workspace awaits</h2>
+                <p className="mt-3 text-muted-foreground/80 leading-relaxed">
+                  You haven't created any projects yet. Click the "New Project" button above to spin up a high-performance collaboration environment.
                 </p>
               </motion.div>
             )}
@@ -303,31 +306,34 @@ const ProjectCard = ({ project, getProjectTimeLabel }: { project: ProjectSummary
   const languageInfo = LANGUAGE_CATALOG[project.language];
   const label = languageInfo?.label || project.language;
   return (
-    <div className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
-      <div className="p-4 flex-grow">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-              <Code className="w-4 h-4" />
+    <div className="glass group rounded-xl cursor-pointer flex flex-col h-full relative overflow-hidden transition-all duration-300">
+      {/* Subtle animated gradient glow behind the card on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      
+      <div className="p-5 flex-grow relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
+              <Code className="w-5 h-5" />
             </div>
-            <h3 className="font-semibold text-lg truncate">{project.name}</h3>
+            <h3 className="font-bold text-lg tracking-tight truncate">{project.name}</h3>
           </div>
-          <Badge variant={project.visibility === 'public' ? 'secondary' : 'outline'}>
+          <Badge variant={project.visibility === 'public' ? 'secondary' : 'outline'} className="bg-background/50 backdrop-blur-sm border-white/10">
             {project.visibility === 'public' ? <Globe className="w-3 h-3 mr-1.5" /> : <Lock className="w-3 h-3 mr-1.5" />}
             {project.visibility || "private"}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          A collaborative project for {label}.
+        <p className="text-sm text-muted-foreground/80 line-clamp-2">
+          A collaborative workspace environment for {label}.
         </p>
       </div>
-      <div className="border-t border-border p-4 text-xs text-muted-foreground flex items-center justify-between">
+      <div className="border-t border-white/5 p-4 bg-background/20 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground flex items-center justify-between relative z-10">
         <div className="flex items-center gap-1.5">
-          <Clock className="w-3 h-3" />
+          <Clock className="w-3.5 h-3.5 text-primary" />
           <span>{getProjectTimeLabel(project)}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Users className="w-3 h-3" />
+          <Users className="w-3.5 h-3.5 text-primary" />
           <span>{project.collaborators?.length || 0}</span>
         </div>
       </div>
@@ -339,28 +345,29 @@ const ProjectListItem = ({ project, getProjectTimeLabel }: { project: ProjectSum
   const languageInfo = LANGUAGE_CATALOG[project.language];
   const label = languageInfo?.label || project.language;
   return (
-    <div className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center p-4">
-      <div className="flex items-center gap-4 flex-grow">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+    <div className="glass group rounded-xl cursor-pointer flex items-center p-5 relative overflow-hidden transition-all duration-300">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="flex items-center gap-4 flex-grow relative z-10">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
           <Code className="w-5 h-5" />
         </div>
         <div className="flex-grow">
-          <h3 className="font-semibold text-lg">{project.name}</h3>
-          <p className="text-xs text-muted-foreground">{label} • {getProjectTimeLabel(project)}</p>
+          <h3 className="font-bold text-lg tracking-tight">{project.name}</h3>
+          <p className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground/70">{label} • {getProjectTimeLabel(project)}</p>
         </div>
       </div>
-      <div className="flex items-center gap-6 text-sm text-muted-foreground">
-        <Badge variant={project.visibility === 'public' ? 'secondary' : 'outline'} className="hidden sm:flex">
+      <div className="flex items-center gap-6 text-sm text-muted-foreground relative z-10">
+        <Badge variant={project.visibility === 'public' ? 'secondary' : 'outline'} className="hidden sm:flex bg-background/50 backdrop-blur-sm border-white/10">
           {project.visibility === 'public' ? <Globe className="w-3 h-3 mr-1.5" /> : <Lock className="w-3 h-3 mr-1.5" />}
           {project.visibility || "private"}
         </Badge>
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4" />
+          <Users className="w-4 h-4 text-primary" />
           <span>{project.collaborators?.length || 0}</span>
         </div>
       </div>
-      <div className="ml-6">
-        <MoreVertical className="w-5 h-5 text-muted-foreground" />
+      <div className="ml-6 relative z-10">
+        <MoreVertical className="w-5 h-5 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
       </div>
     </div>
   );

@@ -23,32 +23,32 @@ export function StatusBar({ language, roomState, onlineCount }: StatusBarProps) 
   };
 
   return (
-    <footer className="h-6 border-t border-white/5 bg-background flex items-center justify-between px-3 text-[10px] text-muted-foreground select-none">
+    <footer className="h-7 border-t border-white/10 bg-background/60 backdrop-blur-md flex items-center justify-between px-4 text-[10px] text-muted-foreground/80 select-none relative z-10">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors">
-          <Globe className="w-3 h-3" />
-          <span className="font-medium uppercase tracking-wider">{roomState}</span>
+          <Globe className="w-3 h-3 text-primary" />
+          <span className="font-semibold uppercase tracking-wider">{roomState}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <CheckCircle2 className={`w-3 h-3 ${getStatusColor()}`} />
-          <span>Sync Status</span>
+          <span className="font-medium">Sync Protocol</span>
         </div>
         <div className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors">
-          <Info className="w-3 h-3" />
+          <Info className="w-3 h-3 text-muted-foreground/50" />
           <span>Ln 1, Col 1</span>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 hover:text-foreground cursor-pointer transition-colors">
-          <Zap className="w-3 h-3 text-yellow-500" />
-          <span>AI Assistant Active</span>
+          <Zap className="w-3 h-3 text-primary animate-pulse" />
+          <span className="font-medium">AI Core Active</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-          <span>{onlineCount} {onlineCount === 1 ? 'Collaborator' : 'Collaborators'}</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+          <span className="font-medium">{onlineCount} {onlineCount === 1 ? 'Peer' : 'Peers'} Online</span>
         </div>
-        <div className="flex items-center gap-1.5 font-semibold text-foreground uppercase tracking-widest bg-accent/50 px-2 py-0.5 rounded transition-colors hover:bg-accent cursor-pointer">
+        <div className="flex items-center gap-1.5 font-bold text-primary uppercase tracking-widest bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md transition-colors hover:bg-primary/20 cursor-pointer">
           {language}
         </div>
       </div>

@@ -58,15 +58,16 @@ function JoinPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden font-sans">
-      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
+    <div className="min-h-screen mesh-bg text-foreground flex flex-col relative overflow-hidden font-sans">
+      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
+      <div className="absolute top-1/3 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[200px] rounded-full pointer-events-none animate-pulse" />
       <HeroNavbar />
 
       <main className="flex-1 flex items-center justify-center p-6 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md p-8 rounded-[2.5rem] bg-sidebar/20 border border-white/5 backdrop-blur-xl shadow-2xl space-y-6 text-center"
+          className="w-full max-w-md p-8 rounded-[2rem] glass shadow-2xl space-y-6 text-center"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mx-auto">
             <Link2 className="w-3 h-3 text-primary" />
@@ -83,7 +84,7 @@ function JoinPage() {
                 The link may be expired or malformed. Ask the project owner for a new
                 invite.
               </p>
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="outline" className="w-full rounded-xl">
                 <Link to="/auth">Go to sign in</Link>
               </Button>
             </div>
@@ -105,7 +106,7 @@ function JoinPage() {
               )}
 
               <Button
-                className="w-full h-12 font-black uppercase tracking-widest text-xs"
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all mt-4"
                 disabled={loading || joining}
                 onClick={() => void handleContinue()}
               >

@@ -28,10 +28,11 @@ function Hero() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
+    <div className="min-h-screen mesh-bg text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
       {/* Background Effects */}
-      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none -mt-48" />
+      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
+      <div className="absolute top-0 left-1/3 w-[800px] h-[600px] bg-primary/15 blur-[200px] rounded-full pointer-events-none -mt-48 animate-pulse" />
+      <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-[oklch(0.8_0.2_210)]/10 blur-[180px] rounded-full pointer-events-none animate-pulse" />
       
       <HeroNavbar />
 
@@ -50,9 +51,9 @@ function Hero() {
           </div>
 
           <div className="space-y-6">
-            <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] uppercase italic">
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] uppercase">
               Stop <span className="text-muted-foreground/30">Streaming</span>. <br />
-              Start <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">Merging</span>.
+              Start <span className="bg-gradient-to-r from-primary via-[oklch(0.8_0.2_210)] to-primary bg-clip-text text-transparent">Merging</span>.
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
               The high-fidelity collaborative engine for the next generation of developers. 
@@ -62,9 +63,9 @@ function Hero() {
 
           <div className="flex flex-col sm:flex-row gap-4 items-center">
             <Link to="/auth">
-              <Button size="lg" className="h-16 px-10 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-sm hover:scale-[1.05] active:scale-95 transition-all shadow-2xl shadow-primary/30 group">
+              <Button size="lg" className="h-16 px-10 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white font-black uppercase tracking-widest text-sm hover:scale-[1.05] active:scale-95 transition-all shadow-2xl shadow-primary/40 group">
                 <Code className="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform" />
-                Initialize Environment
+                Get Started
               </Button>
             </Link>
             <Button variant="ghost" size="lg" className="h-16 px-8 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest transition-all">
@@ -102,16 +103,16 @@ function Hero() {
           ].map((feature, i) => (
             <div 
               key={i}
-              className="group p-8 rounded-[2.5rem] bg-sidebar/20 border border-white/5 hover:border-primary/20 transition-all duration-500 relative overflow-hidden"
+              className="group glass p-8 rounded-[2rem] hover:border-primary/30 transition-all duration-500 relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-[oklch(0.8_0.2_210)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
               <div className="relative z-10 space-y-6">
-                <div className={`w-14 h-14 rounded-2xl bg-background border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-xl`}>
+                <div className={`w-14 h-14 rounded-2xl bg-background/80 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500 shadow-xl`}>
                   <feature.icon className={`w-7 h-7 ${feature.color}`} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-black uppercase italic tracking-tighter group-hover:text-primary transition-colors">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground font-medium leading-relaxed uppercase tracking-wider text-[10px]">{feature.desc}</p>
+                  <h3 className="text-xl font-black uppercase tracking-tighter group-hover:text-primary transition-colors">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground/80 font-medium leading-relaxed">{feature.desc}</p>
                 </div>
               </div>
             </div>
@@ -128,13 +129,13 @@ function Hero() {
         </div>
       </main>
 
-      <footer className="py-12 border-t border-white/5 flex flex-col items-center gap-6 opacity-40">
-        <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.3em] italic">
+      <footer className="py-12 border-t border-white/5 flex flex-col items-center gap-6 opacity-30">
+        <div className="flex gap-8 text-[10px] font-bold uppercase tracking-[0.3em]">
            <span>Infrastructure</span>
            <span>Protocols</span>
            <span>Privacy</span>
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest tracking-[0.2em]">© 2026 CodeHive Collaborative Systems</p>
+        <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">© 2026 CodeHive Collaborative Systems</p>
       </footer>
     </div>
   );

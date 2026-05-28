@@ -43,10 +43,10 @@ function SharedWithMe() {
   }, [navigate]);
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex min-h-screen mesh-bg text-foreground overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="h-14 border-b border-white/10 flex items-center justify-between px-8 bg-background/50 backdrop-blur-xl shrink-0 z-20">
           <div className="flex items-center gap-4">
              <div className="md:hidden">
                <MobileSidebar />
@@ -60,8 +60,8 @@ function SharedWithMe() {
           <Toaster position="bottom-right" />
           
           <div className="flex flex-col w-full max-w-7xl mx-auto space-y-12 relative z-10">
-          <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -mt-48 -mr-48" />
+          <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 blur-[180px] rounded-full pointer-events-none -mt-48 -mr-48 animate-pulse" />
           
         <header className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-2">
@@ -72,14 +72,14 @@ function SharedWithMe() {
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">External environments shared with your identity</p>
         </header>
 
-        <section className="rounded-[2.5rem] bg-sidebar/20 border border-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
-          <div className="grid grid-cols-12 bg-background/40 px-8 py-4 border-b border-white/5">
-            <span className="col-span-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">Project Identifier</span>
-            <span className="col-span-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">Origin Owner</span>
-            <span className="col-span-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground italic text-right">Access Controls</span>
+        <section className="rounded-[2rem] glass overflow-hidden relative z-10 shadow-2xl">
+          <div className="grid grid-cols-12 bg-background/40 px-8 py-5 border-b border-white/10">
+            <span className="col-span-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 italic">Project Identifier</span>
+            <span className="col-span-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 italic">Origin Owner</span>
+            <span className="col-span-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 italic text-right">Access Controls</span>
           </div>
 
-          <div className="divide-y divide-white/5 min-h-[400px]">
+          <div className="divide-y divide-white/10 min-h-[400px]">
             {isLoading ? (
                <div className="h-full flex items-center justify-center p-20">
                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -103,7 +103,7 @@ function SharedWithMe() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="grid grid-cols-12 items-center px-8 py-6 hover:bg-white/5 transition-colors group"
+                    className="grid grid-cols-12 items-center px-8 py-6 hover:bg-white/5 transition-all duration-300 group"
                   >
                     <div className="col-span-6 space-y-1">
                       <h4 className="font-black text-lg uppercase italic group-hover:text-primary transition-colors tracking-tighter">{project.name}</h4>
@@ -122,9 +122,9 @@ function SharedWithMe() {
                     <div className="col-span-3 flex justify-end gap-2">
                       <Button
                         onClick={() => navigate("/editor/" + project._id)}
-                        className="h-10 px-6 rounded-2xl bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all"
+                        className="h-10 px-6 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                        <ExternalLink className="w-3.5 h-3.5 mr-2 text-white" />
                         Initialize
                       </Button>
 
@@ -176,8 +176,8 @@ function SharedWithMe() {
           </div>
         </section>
         
-        <footer className="py-12 opacity-20 text-[10px] font-black uppercase tracking-[0.4em] italic text-center">
-          Shared Protocol v2.4.0 • CodeHive Collaborative Systems
+        <footer className="py-12 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
+          Shared Protocol v2.4.0 · CodeHive Collaborative Systems
         </footer>
           </div>
         </main>

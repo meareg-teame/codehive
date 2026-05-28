@@ -446,31 +446,31 @@ function Editor() {
   return (
     <TooltipProvider>
       <Toaster theme="dark" />
-      <div className="flex h-screen bg-background overflow-hidden font-sans selection:bg-primary/30">
+      <div className="flex h-screen mesh-bg overflow-hidden font-sans selection:bg-primary/30">
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
+        <header className="h-14 border-b border-white/10 flex items-center justify-between px-8 bg-background/60 backdrop-blur-2xl shrink-0 relative z-20">
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-2 text-muted-foreground">
                <Link to="/dashboard" className="flex items-center gap-2 hover:text-foreground transition-colors group">
-                 <LayoutGrid className="w-4 h-4 group-hover:scale-105 transition-transform" />
+                 <LayoutGrid className="w-4 h-4 group-hover:scale-110 group-hover:text-primary transition-all duration-300" />
                  <span className="text-[10px] font-bold uppercase tracking-widest">Dashboard</span>
                </Link>
-               <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
-               <span className="text-[10px] font-black uppercase tracking-widest italic text-foreground">{projectDetails.name}</span>
+               <ChevronRight className="w-3 h-3 text-muted-foreground/20" />
+               <span className="text-[10px] font-black uppercase tracking-widest text-foreground">{projectDetails.name}</span>
              </div>
           </div>
           <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
-               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-               <span className="text-[9px] font-black text-primary uppercase tracking-tighter">Sync Active</span>
+             <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/15 border border-primary/25 rounded-full backdrop-blur-sm">
+               <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-sm shadow-primary/50" />
+               <span className="text-[9px] font-black text-primary uppercase tracking-wider">Live</span>
              </div>
           </div>
         </header>
         
-        <main className="flex-1 flex overflow-hidden relative">
+        <main className="flex-1 flex overflow-hidden relative mesh-bg">
           <ResizablePanelGroup direction="horizontal" className="h-full">
             {/* Sidebar: File Explorer */}
-            <ResizablePanel defaultSize={16} minSize={12} maxSize={25} className="bg-sidebar/30 backdrop-blur-sm border-r border-white/5 flex flex-col">
+            <ResizablePanel defaultSize={16} minSize={12} maxSize={25} className="bg-background/40 backdrop-blur-3xl border-r border-white/10 flex flex-col relative z-10 shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
               <div className="p-4 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2">

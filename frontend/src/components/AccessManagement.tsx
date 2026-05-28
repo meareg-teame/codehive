@@ -33,10 +33,10 @@ function AccessManagement() {
   }, [navigate]);
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex min-h-screen mesh-bg text-foreground overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="h-14 border-b border-white/10 flex items-center justify-between px-8 bg-background/50 backdrop-blur-xl shrink-0 z-20">
           <div className="flex items-center gap-4">
              <div className="md:hidden">
                <MobileSidebar />
@@ -61,14 +61,14 @@ function AccessManagement() {
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Manage permissions and infrastructure requests</p>
         </header>
 
-        <section className="rounded-[2.5rem] bg-sidebar/20 border border-white/5 backdrop-blur-xl shadow-2xl overflow-hidden">
-          <div className="grid grid-cols-3 bg-background/40 px-8 py-4 border-b border-white/5">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">Project Identifier</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic text-center">Requester Identity</span>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic text-right">Clearance Status</span>
+        <section className="rounded-[2rem] glass overflow-hidden relative z-10 shadow-2xl">
+          <div className="grid grid-cols-3 bg-background/40 px-8 py-5 border-b border-white/10">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 italic">Project Identifier</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 italic text-center">Requester Identity</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70 italic text-right">Clearance Status</span>
           </div>
 
-          <div className="divide-y divide-white/5 min-h-[400px]">
+          <div className="divide-y divide-white/10 min-h-[400px]">
             {isLoading ? (
                <div className="h-full flex items-center justify-center p-20">
                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -92,7 +92,7 @@ function AccessManagement() {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="grid grid-cols-3 items-center px-8 py-6 hover:bg-white/5 transition-colors group"
+                    className="grid grid-cols-3 items-center px-8 py-6 hover:bg-white/5 transition-all duration-300 border-white/10 group"
                   >
                     <div className="space-y-1">
                       <h4 className="font-black text-sm uppercase italic group-hover:text-primary transition-colors">{project.projectName}</h4>
@@ -128,9 +128,9 @@ function AccessManagement() {
                             });
                             toast.success(`Access granted for ${project.projectName}`);
                           }}
-                          className="h-9 px-6 rounded-xl bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all"
+                          className="h-9 px-6 rounded-xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all"
                         >
-                          <UserPlus className="w-3 h-3 mr-2" />
+                          <UserPlus className="w-3 h-3 mr-2 text-white" />
                           Authorize
                         </Button>
                       )}
@@ -143,8 +143,8 @@ function AccessManagement() {
         </section>
       </div>
 
-        <footer className="py-12 opacity-20 text-[10px] font-black uppercase tracking-[0.4em] italic text-center">
-          Access Protocol v2.4.0 • CodeHive Collaborative Systems
+        <footer className="py-12 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
+          Access Protocol v2.4.0 · CodeHive Collaborative Systems
         </footer>
       </main>
     </div>

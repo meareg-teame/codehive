@@ -51,10 +51,10 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 h-screen border-r border-white/5 bg-sidebar/40 backdrop-blur-3xl flex flex-col sticky top-0 z-50 shrink-0">
+    <aside className="w-64 h-screen border-r border-white/8 bg-background/50 backdrop-blur-3xl flex flex-col sticky top-0 z-50 shrink-0 shadow-[4px_0_32px_rgba(0,0,0,0.3)]">
       <div className="p-6">
         <Link to="/dashboard" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shadow-lg shadow-primary/20">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-[oklch(0.8_0.2_210)] rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shadow-lg shadow-primary/30">
             <Command className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="flex flex-col">
@@ -77,7 +77,7 @@ export function Sidebar() {
               to={link.path}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  ? "bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white shadow-lg shadow-primary/30"
                   : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
               }`}
             >

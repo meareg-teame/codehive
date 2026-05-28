@@ -74,9 +74,10 @@ function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
-      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 blur-[160px] rounded-full pointer-events-none" />
+    <div className="min-h-screen mesh-bg text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
+      <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
+      <div className="absolute top-1/3 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[200px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[oklch(0.8_0.2_210)]/10 blur-[180px] rounded-full pointer-events-none animate-pulse" />
       
       <HeroNavbar />
       <Toaster position="bottom-right" />
@@ -96,8 +97,8 @@ function Auth() {
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Authentication protocol required</p>
           </div>
 
-          <div className="p-8 rounded-[2.5rem] bg-sidebar/20 border border-white/5 backdrop-blur-xl shadow-2xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          <div className="p-8 rounded-[2.5rem] glass relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-[oklch(0.8_0.2_210)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             
             <Tabs defaultValue="account" className="w-full">
               <TabsList className="grid grid-cols-2 bg-background/40 p-1.5 rounded-2xl mb-8 border border-white/5 h-12">
@@ -115,8 +116,8 @@ function Auth() {
                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Access Token</label>
                     <Input name="password" placeholder="••••••••" type="password" required className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
                   </div>
-                  <Button disabled={isLoading} type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all mt-4">
-                    {isLoading ? <Spinner className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2 fill-primary-foreground" />}
+                  <Button disabled={isLoading} type="submit" className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-95 transition-all mt-4">
+                    {isLoading ? <Spinner className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2 fill-white" />}
                     {isLoading ? "Synchronizing..." : "Authenticate"}
                   </Button>
                 </form>
@@ -136,9 +137,9 @@ function Auth() {
                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Access Token</label>
                     <Input name="password" placeholder="••••••••" type="password" required minLength={6} className="h-12 bg-background/40 border-white/5 rounded-xl px-4 text-sm focus:ring-primary/20" />
                   </div>
-                  <Button disabled={isLoading} type="submit" className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all mt-4">
-                    {isLoading ? <Spinner className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2 fill-primary-foreground" />}
-                    {isLoading ? "Initialize" : "Initialize Identity"}
+                  <Button disabled={isLoading} type="submit" className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-95 transition-all mt-4">
+                    {isLoading ? <Spinner className="w-4 h-4 mr-2" /> : <Zap className="w-4 h-4 mr-2 fill-white" />}
+                    {isLoading ? "Initializing..." : "Initialize Identity"}
                   </Button>
                 </form>
               </TabsContent>
@@ -163,8 +164,8 @@ function Auth() {
         </motion.div>
       </main>
 
-      <footer className="py-8 opacity-20 text-[10px] font-black uppercase tracking-[0.4em] italic text-center">
-        Neural Handshake v2.4.0
+      <footer className="py-8 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
+        CodeHive · Secure Collaboration Platform
       </footer>
     </div>
   );

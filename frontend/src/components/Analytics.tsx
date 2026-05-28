@@ -102,10 +102,10 @@ function Analytics() {
 
   if (loading) {
     return (
-    <div className="flex min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex min-h-screen mesh-bg text-foreground overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="h-14 border-b border-white/10 flex items-center justify-between px-8 bg-background/50 backdrop-blur-xl shrink-0">
           <div className="flex items-center gap-4">
              <Activity className="w-4 h-4 text-primary" />
              <h2 className="text-xs font-black uppercase tracking-widest italic">Intelligence Protocol</h2>
@@ -116,9 +116,9 @@ function Analytics() {
           <div className="max-w-7xl mx-auto space-y-10">
            <Skeleton className="h-12 w-64 rounded-2xl bg-white/5" />
            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-[2.5rem] bg-white/5" />)}
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-[2rem] bg-white/5" />)}
            </div>
-           <Skeleton className="h-[400px] w-full rounded-[2.5rem] bg-white/5" />
+           <Skeleton className="h-[400px] w-full rounded-[2rem] bg-white/5" />
           </div>
         </main>
       </div>
@@ -127,13 +127,13 @@ function Analytics() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex min-h-screen mesh-bg text-foreground overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/5 blur-[140px] rounded-full pointer-events-none -mt-48" />
+        <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
+        <div className="absolute top-0 left-1/3 w-[800px] h-[500px] bg-primary/10 blur-[180px] rounded-full pointer-events-none -mt-48 animate-pulse" />
 
-        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-background/50 backdrop-blur-md shrink-0 relative z-10">
+        <header className="h-14 border-b border-white/10 flex items-center justify-between px-8 bg-background/50 backdrop-blur-xl shrink-0 relative z-20">
           <div className="flex items-center gap-4">
              <div className="md:hidden">
                <MobileSidebar />
@@ -173,15 +173,15 @@ function Analytics() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="p-8 rounded-[2.5rem] bg-sidebar/20 border border-white/5 backdrop-blur-xl hover:border-primary/20 transition-all group relative overflow-hidden"
+                  className="p-8 rounded-[2rem] glass hover:border-primary/30 transition-all group relative overflow-hidden shadow-xl"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-[oklch(0.8_0.2_210)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                   <div className="relative z-10 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">{stat.title}</span>
-                      <stat.icon className={`w-4 h-4 ${stat.color} opacity-40`} />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 italic">{stat.title}</span>
+                      <stat.icon className={`w-4 h-4 ${stat.color} opacity-60 group-hover:scale-110 transition-transform duration-300`} />
                     </div>
-                    <div className="text-3xl font-black italic tracking-tighter group-hover:scale-105 transition-transform origin-left uppercase">{stat.value}</div>
+                    <div className="text-3xl font-black tracking-tighter group-hover:scale-105 transition-transform origin-left uppercase text-foreground">{stat.value}</div>
                   </div>
                 </motion.div>
               ))}
@@ -194,10 +194,10 @@ function Analytics() {
                   Project Intelligence
                 </h2>
                 <Select value={selectedProject || ""} onValueChange={setSelectedProject}>
-                  <SelectTrigger className="w-[300px] h-12 bg-sidebar/40 border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest px-6 focus:ring-primary/20">
+                  <SelectTrigger className="w-[300px] h-12 bg-background/40 border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest px-6 focus:ring-primary/20">
                     <SelectValue placeholder="Protocol Switch" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background border-white/5 rounded-2xl p-2">
+                  <SelectContent className="bg-background border-white/10 rounded-2xl p-2 shadow-2xl">
                     {projects.map((project) => (
                       <SelectItem 
                         key={project._id} 
@@ -227,20 +227,21 @@ function Analytics() {
                           { l: "Mean Runtime", v: formatDuration(projectAnalytics.avgSessionDuration), i: Clock },
                           { l: "Stack Root", v: Object.keys(projectAnalytics.languageDistribution)[0] || "N/A", i: Layers }
                         ].map((stat, i) => (
-                          <div key={i} className="p-6 rounded-[2rem] bg-accent/20 border border-white/5 space-y-2">
-                            <div className="flex items-center gap-2">
-                                <stat.i className="w-3 h-3 text-primary" />
+                          <div key={i} className="p-6 rounded-[1.5rem] glass space-y-2 relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            <div className="flex items-center gap-2 relative z-10">
+                                <stat.i className="w-3.5 h-3.5 text-primary" />
                                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{stat.l}</span>
                             </div>
-                            <div className="text-xl font-black italic uppercase">{stat.v}</div>
+                            <div className="text-xl font-black uppercase relative z-10 text-foreground">{stat.v}</div>
                           </div>
                         ))}
                       </div>
 
-                      <Card className="rounded-[2.5rem] bg-sidebar/20 border-white/5 backdrop-blur-xl overflow-hidden shadow-2xl">
-                        <CardHeader className="p-8 border-b border-white/5">
+                      <Card className="rounded-[2rem] glass overflow-hidden shadow-2xl">
+                        <CardHeader className="p-8 border-b border-white/10">
                           <CardTitle className="text-xs font-black uppercase tracking-[0.3em] italic text-muted-foreground flex items-center gap-3">
-                            <TrendingUp className="w-4 h-4 text-blue-500" />
+                            <TrendingUp className="w-4 h-4 text-primary" />
                             Session Flux Propagation
                           </CardTitle>
                         </CardHeader>
@@ -270,10 +271,10 @@ function Analytics() {
                     </div>
 
                     <div className="lg:col-span-4 space-y-8">
-                      <Card className="rounded-[2.5rem] bg-sidebar/20 border-white/5 backdrop-blur-xl overflow-hidden h-full shadow-2xl">
-                        <CardHeader className="p-8 border-b border-white/5">
+                      <Card className="rounded-[2rem] glass overflow-hidden h-full shadow-2xl">
+                        <CardHeader className="p-8 border-b border-white/10">
                           <CardTitle className="text-xs font-black uppercase tracking-[0.3em] italic text-muted-foreground flex items-center gap-3">
-                            <FileCode className="h-4 w-4 text-emerald-500" />
+                            <FileCode className="h-4 w-4 text-primary" />
                             Logic Distribution
                           </CardTitle>
                         </CardHeader>
@@ -312,13 +313,13 @@ function Analytics() {
 
                     {projectAnalytics.memberContributions.length > 0 && (
                       <div className="lg:col-span-12">
-                          <Card className="rounded-[3rem] bg-sidebar/20 border-white/5 backdrop-blur-xl overflow-hidden shadow-2xl">
-                            <div className="grid grid-cols-3 bg-background/40 px-10 py-6 border-b border-white/5">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] italic text-muted-foreground">Contributor Identity</span>
-                                <span className="text-center text-[10px] font-black uppercase tracking-[0.3em] italic text-muted-foreground">Impact Flux</span>
-                                <span className="text-right text-[10px] font-black uppercase tracking-[0.3em] italic text-muted-foreground">Protocol Rank</span>
+                          <Card className="rounded-[2rem] glass overflow-hidden shadow-2xl">
+                            <div className="grid grid-cols-3 bg-background/40 px-10 py-6 border-b border-white/10">
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] italic text-muted-foreground/70">Contributor Identity</span>
+                                <span className="text-center text-[10px] font-black uppercase tracking-[0.3em] italic text-muted-foreground/70">Impact Flux</span>
+                                <span className="text-right text-[10px] font-black uppercase tracking-[0.3em] italic text-muted-foreground/70">Protocol Rank</span>
                             </div>
-                            <div className="divide-y divide-white/5">
+                            <div className="divide-y divide-white/10">
                                 {projectAnalytics.memberContributions.map((member: any, i: number) => (
                                   <div key={i} className="grid grid-cols-3 items-center px-10 py-8 hover:bg-white/5 transition-colors group">
                                     <div className="flex items-center gap-4">
@@ -345,8 +346,8 @@ function Analytics() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <footer className="py-12 opacity-20 text-[10px] font-black uppercase tracking-[0.4em] italic text-center">
-                Intelligence Protocol v2.4.0 • CodeHive Collaborative Systems
+              <footer className="py-12 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
+                Intelligence Protocol v2.4.0 · CodeHive Collaborative Systems
               </footer>
             </section>
           </div>
