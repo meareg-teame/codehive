@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 @layer base {
   :root {
@@ -61,8 +60,8 @@
    SCROLLBAR
    ============================================================ */
 ::-webkit-scrollbar       { width: 0.4rem; }
-::-webkit-scrollbar-track { background: var(--background); }
-::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 0.2rem; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--muted)); border-radius: 0.2rem; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.28 0.01 260); }
 
 /* ============================================================
@@ -71,8 +70,8 @@
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--foreground) !important;
-  caret-color: var(--foreground) !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground)) !important;
   transition: background-color 9999s ease-in-out 0s;
 }
 
@@ -97,7 +96,7 @@ input:-webkit-autofill:focus {
 
   /* Vibrant Mesh Background */
   .mesh-bg {
-    background-color: var(--background);
+    background-color: hsl(var(--background));
     background-image: 
       radial-gradient(at 0% 0%, oklch(0.7 0.25 300 / 15%) 0px, transparent 50%),
       radial-gradient(at 100% 0%, oklch(0.8 0.2 210 / 15%) 0px, transparent 50%),
