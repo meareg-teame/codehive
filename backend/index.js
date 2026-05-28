@@ -86,6 +86,19 @@ app.get("/health",(req,res)=>{
   res.status(200).json({msg:"200 OK"});
 });
 
+// Global error handler with CORS support
+app.use((err, req, res, next) => {
+  console.error("Unhandled Error:", err);
+  const origin = req.headers.origin;
+  if (isAllowedOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  res.status(err.statusCode || err.status || 500).json({
+    msg: err.message || "Internal Server Error",
+  });
+});
+
 const PORT = process.env.PORT || 8080;
 
 server.listen(PORT, () => {
