@@ -33,6 +33,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { legacyProjects } from "@/api";
+import InviteModal from "./InviteModal";
 import { createInvite, generateLegacyInvite } from "@/api/v1/team";
 import axios from "axios";
 import { isUnauthorizedError } from "@/api/client";
@@ -643,50 +644,15 @@ function Editor() {
                   </Button>
 
                   {/* Invite Link Modal */}
-                  {isInviteModalOpen && inviteLink && (
-                    <div
-                      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                      style={{ background: "rgba(0,0,0,0.7)" }}
-                      onClick={() => setIsInviteModalOpen(false)}
-                    >
-                      <div
-                        className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-900 shadow-2xl p-6 space-y-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <UserPlus className="w-4 h-4 text-primary" />
-                            <h2 className="text-sm font-black uppercase tracking-widest">Invite Link</h2>
-                          </div>
-                          <button
-                            className="text-muted-foreground hover:text-foreground transition-colors text-xs"
-                            onClick={() => setIsInviteModalOpen(false)}
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Share this link with collaborators. They must sign in to join.
-                        </p>
-                        <div className="flex gap-2">
-                          <div className="flex-1 min-w-0 bg-neutral-950 border border-white/10 rounded-lg px-3 py-2">
-                            <p className="text-[11px] font-mono text-muted-foreground truncate">{inviteLink}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="shrink-0 h-9 px-3 rounded-lg bg-white text-black hover:bg-neutral-200 font-black text-[11px] uppercase tracking-widest"
-                            onClick={copyInviteLink}
-                          >
-                            Copy
-                          </Button>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground/40 uppercase tracking-widest text-center">
-                          Link expires in 7 days
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  {/* Invite Link Modal using React Portal */}
+          {isInviteModalOpen && inviteLink && (
+            <InviteModal
+              isOpen={isInviteModalOpen}
+              onClose={() => setIsInviteModalOpen(false)}
+              inviteLink={inviteLink}
+              copyInviteLink={copyInviteLink}
+            />
+          )}                </div>
               </div>
             </ResizablePanel>
 
@@ -807,7 +773,15 @@ function Editor() {
                                 scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
                               });
                               
-                              editor.setValue(editorValue);
+                              // Sync editor content with Yjs document
+                              if (type.length === 0) {
+                                // No remote content yet, push local file content
+                                type.insert(0, editorValue);
+                                editor.setValue(editorValue);
+                              } else {
+                                // Remote content exists, load it into the editor
+                                editor.setValue(type.toString());
+                              }
                               editorRef.current = editor;
                               setYjsInstances({ provider, ydoc, editor });
 
