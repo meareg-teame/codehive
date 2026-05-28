@@ -16,7 +16,7 @@ export const LayoutShell = ({ children }: { children: ReactNode }) => (
 
     {/* Footer (optional) */}
     <footer className="glass p-4 mx-4 mb-4 md:mx-8 md:mb-8 text-sm text-muted-foreground text-center">
-      © {new Date().getFullYear()} CodeHive – All rights reserved
+      © {new Date().getFullYear()} CodeCollab – All rights reserved
     </footer>
   </div>
 );

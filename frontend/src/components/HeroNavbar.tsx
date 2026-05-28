@@ -11,7 +11,7 @@ function HeroNavbar() {
           <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/20 flex items-center justify-center group-hover:rotate-6 transition-transform">
             <Code className="w-4 h-4 text-primary" />
           </div>
-          <span className="font-black text-xl tracking-tighter uppercase italic text-foreground">CodeHive</span>
+          <span className="font-black text-xl tracking-tighter uppercase italic text-foreground">CodeCollab</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">

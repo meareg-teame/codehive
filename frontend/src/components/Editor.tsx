@@ -210,7 +210,7 @@ function Editor() {
       .then(async (res) => {
         const details = reverseProjectFiles(res.projectDetails);
         setProjectDetails(details);
-        document.title = `${res.projectDetails.name} - CodeHive`;
+        document.title = `${res.projectDetails.name} - CodeCollab`;
         setUser(res.user);
 
         // Auto-initialize with a default file if empty
@@ -244,7 +244,7 @@ function Editor() {
         if (data?.projectData) {
           setIsAccessAllowed(false);
           setProjectDetails(reverseProjectFiles(data.projectData));
-          document.title = `${data.projectData.name} - CodeHive`;
+          document.title = `${data.projectData.name} - CodeCollab`;
           setRequestedBy(data.requestedBy || "");
           setUser(data.requestedBy || "");
         }

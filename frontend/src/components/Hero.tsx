@@ -53,7 +53,7 @@ function Hero() {
           <div className="space-y-6">
             <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] uppercase">
               Stop <span className="text-muted-foreground/30">Streaming</span>. <br />
-              Start <span className="bg-gradient-to-r from-primary via-[oklch(0.8_0.2_210)] to-primary bg-clip-text text-transparent">Merging</span>.
+              Start building <span className="bg-gradient-to-r from-primary via-[oklch(0.8_0.2_210)] to-primary bg-clip-text text-transparent">your $100M MRR startup</span>.
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
               The high-fidelity collaborative engine for the next generation of developers. 
@@ -61,17 +61,35 @@ function Hero() {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            <Link to="/auth">
-              <Button size="lg" className="h-16 px-10 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white font-black uppercase tracking-widest text-sm hover:scale-[1.05] active:scale-95 transition-all shadow-2xl shadow-primary/40 group">
-                <Code className="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform" />
-                Get Started
-              </Button>
-            </Link>
-            <Button variant="ghost" size="lg" className="h-16 px-8 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest transition-all">
-              Explore Protocol
-            </Button>
-          </div>
+            <div className="flex flex-col sm:flex-row gap-4 items-center mt-8">
+                <Link to="/auth">
+                  <Button size="lg" className="h-16 px-10 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white font-black uppercase tracking-widest text-sm hover:scale-[1.05] active:scale-95 transition-all shadow-2xl shadow-primary/40 group">
+                    <Code className="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform" />
+                    Get Started – Build Your Startup
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="lg" className="h-16 px-8 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest transition-all">
+                  Explore Protocol
+                </Button>
+              </div>
+
+            {/* Pricing Section */}
+            <div className="mt-12 w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[{name:"Free",price:"$0",features:["Up to 3 projects","Community support"]},
+                {name:"Pro",price:"$49/mo",features:["Unlimited projects","Priority support","Advanced analytics"]},
+                {name:"Enterprise",price:"Contact sales",features:["Custom integration","Dedicated manager","SLA"]}].map((plan,i)=> (
+                <div key={i} className="glass p-6 rounded-2xl text-center space-y-4">
+                  <h3 className="text-xl font-black uppercase">{plan.name}</h3>
+                  <p className="text-2xl font-bold text-primary">{plan.price}</p>
+                  <ul className="text-sm text-muted-foreground space-y-1 text-left">
+                    {plan.features.map((f,idx)=> (<li key={idx}>• {f}</li>))}
+                  </ul>
+                  <Button variant={plan.name==='Free'?'outline':'default'} className="mt-4 w-full">
+                    {plan.name==='Free'?'Start Free':'Get Started'}
+                  </Button>
+                </div>
+              ))}
+            </div>
         </motion.div>
 
         {/* Feature Grid */}
@@ -129,14 +147,14 @@ function Hero() {
         </div>
       </main>
 
-      <footer className="py-12 border-t border-white/5 flex flex-col items-center gap-6 opacity-30">
-        <div className="flex gap-8 text-[10px] font-bold uppercase tracking-[0.3em]">
-           <span>Infrastructure</span>
-           <span>Protocols</span>
-           <span>Privacy</span>
-        </div>
-        <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">© 2026 CodeHive Collaborative Systems</p>
-      </footer>
+        <footer className="py-12 border-t border-white/5 flex flex-col items-center gap-6 opacity-30">
+          <div className="flex gap-8 text-[10px] font-bold uppercase tracking-[0.3em]">
+            <span>Infrastructure</span>
+            <span>Protocols</span>
+            <span>Privacy</span>
+          </div>
+          <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">© 2026 CodeCollab – Empowering Startup Growth</p>
+        </footer>
     </div>
   );
 }

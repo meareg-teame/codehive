@@ -20,7 +20,7 @@ function AccessManagement() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Access Protocol - CodeHive";
+    document.title = "Access Protocol - CodeCollab";
     legacyProjects
       .getAccessManagement()
       .then((projects) => {
@@ -144,7 +144,7 @@ function AccessManagement() {
       </div>
 
         <footer className="py-12 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
-          Access Protocol v2.4.0 · CodeHive Collaborative Systems
+          Access Protocol v2.4.0 · CodeCollab Collaborative Systems
         </footer>
       </main>
     </div>
