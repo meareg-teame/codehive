@@ -78,12 +78,13 @@ function Dashboard() {
 
     setIsLoading(true);
     try {
-      const newProject = await legacyProjects.createProject({
+      const result = await legacyProjects.createProject({
         projectName: projectName.trim(),
         language: projectLanguage,
         visibility: "private",
       });
-      toast.success(`Project "${newProject.name}" created successfully!`);
+      const createdName = result.project?.name || projectName.trim();
+      toast.success(`Project "${createdName}" created successfully!`);
       setIsDialogOpen(false);
       setProjectName("");
       setProjectLanguage("");

@@ -1,6 +1,5 @@
 
 import {
-  MoreVertical,
   ExternalLink,
   Trash2,
   Clock,
@@ -46,9 +45,12 @@ export const ProjectCard = ({
   timeLabel,
   viewMode,
 }: ProjectCardProps) => {
-  const LanguageIcon =
-    LANGUAGE_CATALOG.find((lang) => lang.value === project.language)?.icon ||
-    Code;
+  const languageMeta = LANGUAGE_CATALOG[project.language];
+  const languageLabel = languageMeta?.label ?? project.language;
+  const LanguageIcon = Code;
+  const visibilityLabel = project.visibility
+    ? `${project.visibility.charAt(0).toUpperCase()}${project.visibility.slice(1)}`
+    : "Private";
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -80,10 +82,7 @@ export const ProjectCard = ({
               ) : (
                 <Globe className="w-4 h-4" />
               )}
-              <span>
-                {project.visibility?.charAt(0).toUpperCase() +
-                  project.visibility?.slice(1)}
-              </span>
+              <span>{visibilityLabel}</span>
             </div>
             <div className="hidden md:flex items-center gap-2">
               <Clock className="w-4 h-4" />
@@ -138,14 +137,14 @@ export const ProjectCard = ({
             }
             className="capitalize"
           >
-            {project.visibility}
+            {visibilityLabel}
           </Badge>
         </div>
 
         <p className="mt-4 text-sm text-muted-foreground flex-grow">
           A collaborative project for{" "}
           <span className="font-medium text-foreground">
-            {project.language}
+            {languageLabel}
           </span>
           .
         </p>
