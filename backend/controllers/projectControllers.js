@@ -27,8 +27,16 @@ const DEFAULT_FILE_MAP = {
 };
 
 function getCurrentUser(req) {
-  const decoded = jwt.verify(req.cookies.user, process.env.JWT_SECRET);
-  return decoded.user;
+  // Prefer the decoded user attached by authenticateToken middleware
+  if (req.user && req.user.email) {
+    return req.user.email;
+  }
+  // Fallback: attempt to verify token manually from header or cookies
+  const authHeader = req.headers['authorization'];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.cookies.token || req.cookies.user;
+  if (!token) return null;
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  return decoded?.email || decoded?.user;
 }
 
 function buildDevProject({ projectName, language, visibility, owner }) {
