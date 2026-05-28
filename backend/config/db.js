@@ -27,9 +27,7 @@ const connectPostgres = async ({ sync } = {}) => {
     const shouldSync =
       typeof sync === "boolean"
         ? sync
-        : typeof envSync === "string"
-          ? envSync !== "false"
-          : process.env.NODE_ENV !== "production";
+        : envSync !== "false";
 
     if (shouldSync) {
       await sequelize.sync();
