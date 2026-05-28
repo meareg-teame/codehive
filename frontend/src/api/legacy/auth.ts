@@ -68,3 +68,8 @@ export async function firebaseSignin(idToken: string) {
   }>("/auth/firebase-signin", { idToken });
   return data;
 }
+
+export async function updateProfile(payload: { name: string; photoUrl?: string }) {
+  const { data } = await apiClient.post<{ msg: string }>("/auth/update-profile", payload);
+  return data;
+}

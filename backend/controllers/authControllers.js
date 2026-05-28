@@ -149,6 +149,30 @@ export async function changePassword(req, res) {
   return res.status(200).json({ msg: "Password changed!" });
 }
 
+export async function updateProfile(req, res) {
+  let user;
+  try {
+    user = await jwt.verify(req.cookies.user, process.env.JWT_SECRET).user;
+  } catch (e) {
+    return res.status(401).json({ msg: "unauthorized" });
+  }
+
+  const { name, photoUrl } = req.body;
+  if (!name) {
+    return res.status(400).json({ msg: "Name is required" });
+  }
+
+  try {
+    await Account.update(
+      { name, photoUrl },
+      { where: { email: user } }
+    );
+    return res.status(200).json({ msg: "Profile updated successfully" });
+  } catch (e) {
+    return res.status(500).json({ msg: "Failed to update profile" });
+  }
+}
+
 export async function googleOauth(req, res) {
   const { email, name, photoUrl } = req.body;
   const userData = await Account.findOne({ where: { email: email } });

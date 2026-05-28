@@ -23,6 +23,7 @@ type AuthContextValue = {
   guestLogin: () => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+  updateProfile: (name: string, photoUrl?: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -93,6 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateProfile = useCallback(
+    async (name: string, photoUrl?: string) => {
+      await legacyAuth.updateProfile({ name, photoUrl });
+      await refreshUser();
+    },
+    [refreshUser]
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -103,8 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       guestLogin,
       logout,
       changePassword,
+      updateProfile,
     }),
-    [user, loading, refreshUser, login, signup, guestLogin, logout, changePassword]
+    [user, loading, refreshUser, login, signup, guestLogin, logout, changePassword, updateProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

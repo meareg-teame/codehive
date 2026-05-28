@@ -1,14 +1,12 @@
 import Project from "../models/Project.js";
-import User from "../models/User.js";
 import Session from "../models/Session.js";
 import CodeDocument from "../models/CodeDocument.js";
 import Account from "../models/Account.js";
-import jwt from "jsonwebtoken";
 import { Op } from "sequelize";
 
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.userId);
+    const user = await Account.findByPk(req.user.userId);
     if (!user) return res.status(404).json({ error: true, message: "User not found" });
     res.status(200).json({ success: true, data: user });
   } catch (error) {

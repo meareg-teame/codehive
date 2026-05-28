@@ -11,7 +11,7 @@ export async function getOverview(req, res) {
       where: {
         [Op.or]: [
           { owner: userEmail },
-          { collaborators: { [Op.contains]: [userEmail] } }
+          { collaborators: { [Op.contains]: [{ userId: req.user.userId }] } }
         ]
       }
     });
@@ -27,7 +27,7 @@ export async function getOverview(req, res) {
       },
     });
 
-    const totalSessions = sessions.length || 8;
+    const totalSessions = sessions.length;
 
     // Sum session durations
     let totalTimeInSessions = 0;
@@ -36,9 +36,6 @@ export async function getOverview(req, res) {
         totalTimeInSessions += (new Date(s.endedAt) - new Date(s.startedAt)) / 1000;
       }
     });
-    // Fallback if no durations recorded
-    if (totalTimeInSessions === 0) totalTimeInSessions = 3600 * 3.5; // 3.5 hours
-
     // Find most used language
     const languages = userProjects.map((p) => p.language).filter(Boolean);
     let mostUsedLanguage = "javascript";
@@ -53,7 +50,7 @@ export async function getOverview(req, res) {
     }
 
     // Executions run
-    const totalExecutions = sessions.reduce((acc, s) => acc + (s.executionsRun || 0), 0) || 15;
+    const totalExecutions = sessions.reduce((acc, s) => acc + (s.executionsRun || 0), 0);
 
     res.status(200).json({
       success: true,
@@ -75,7 +72,7 @@ export async function getProjectAnalytics(req, res) {
     const { projectId } = req.params;
 
     const sessions = await Session.findAll({ where: { projectId } });
-    const totalSessions = sessions.length || 4;
+    const totalSessions = sessions.length;
 
     // Compute average session duration
     let totalDuration = 0;
@@ -87,29 +84,35 @@ export async function getProjectAnalytics(req, res) {
       }
     });
     const avgSessionDuration =
-      validSessionCount > 0 ? Math.round(totalDuration / validSessionCount) : 1800; // default 30 mins
+      validSessionCount > 0 ? Math.round(totalDuration / validSessionCount) : 0;
 
     const project = await Project.findByPk(projectId);
     const languageDistribution = {};
-    if (project) {
-      languageDistribution[project.language || "javascript"] = 100;
-    } else {
-      languageDistribution["javascript"] = 100;
+    if (project && project.language) {
+      languageDistribution[project.language] = 100;
     }
 
     const memberContributions = [];
-    if (project && Array.isArray(project.collaborators)) {
+    if (project && Array.isArray(project.collaborators) && project.collaborators.length > 0) {
       project.collaborators.forEach((collab) => {
         memberContributions.push({
-          userName: collab.split("@")[0] || collab,
-          linesContributed: Math.floor(Math.random() * 150) + 30,
+          userName: collab.userName || collab.email || "Unknown", // Assuming collaborator objects have userName or email
+          linesContributed: 0, // Placeholder, needs actual implementation
         });
       });
-    } else {
-      memberContributions.push({ userName: "Owner", linesContributed: 100 });
     }
 
     const sessionsOverTime = [];
+    const sessionCountsByDate = sessions.reduce((acc, s) => {
+      if (s.startedAt) {
+        const sDate = new Date(s.startedAt);
+        // Format date to YYYY-MM-DD to use as map key
+        const dateKey = sDate.toISOString().split('T')[0];
+        acc[dateKey] = (acc[dateKey] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
@@ -117,16 +120,12 @@ export async function getProjectAnalytics(req, res) {
         month: "short",
         day: "numeric",
       });
-
-      const count = sessions.filter((s) => {
-        if (!s.startedAt) return false;
-        const sDate = new Date(s.startedAt);
-        return sDate.toDateString() === date.toDateString();
-      }).length;
+      const dateKey = date.toISOString().split('T')[0];
+      const count = sessionCountsByDate[dateKey] || 0;
 
       sessionsOverTime.push({
         date: dateString,
-        count: count || Math.floor(Math.random() * 2) + 1,
+        count: count,
       });
     }
 

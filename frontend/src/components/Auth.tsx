@@ -74,8 +74,7 @@ function Auth() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-primary/30">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.25),rgba(255,255,255,0))] pointer-events-none" />
+    <div className="min-h-screen w-full bg-background text-foreground flex flex-col relative overflow-hidden font-sans selection:bg-neutral-800">
       <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
       
       <HeroNavbar />
@@ -88,16 +87,15 @@ function Auth() {
           className="w-full max-w-md space-y-8"
         >
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-4">
-              <ShieldCheck className="w-3 h-3 text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Secure Gateway</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-4">
+              <ShieldCheck className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Secure Gateway</span>
             </div>
-            <h1 className="text-4xl font-black uppercase italic tracking-tighter">Initialize <span className="text-primary">Session</span></h1>
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter">Initialize <span className="text-white/60">Session</span></h1>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Authentication protocol required</p>
           </div>
 
           <div className="p-8 rounded-[2.5rem] bg-card/40 border border-border backdrop-blur-xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             
             <Tabs defaultValue="account" className="w-full">
               <TabsList className="grid grid-cols-2 bg-background/30 p-1.5 rounded-2xl mb-8 border border-border h-12">
@@ -164,7 +162,7 @@ function Auth() {
       </main>
 
       <footer className="py-8 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
-        CodeHive · Secure Collaboration Platform
+        CodeCollab · Secure Collaboration Platform
       </footer>
     </div>
   );

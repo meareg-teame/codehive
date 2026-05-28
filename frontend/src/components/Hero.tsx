@@ -113,7 +113,7 @@ const pricing = [
 
 const faqs = [
   {
-    question: "How does CodeHive handle data security?",
+    question: "How does CodeCollab handle data security?",
     answer:
       "We use encryption in transit and at rest, plus org-level policy controls and audit logs.",
   },
@@ -130,7 +130,7 @@ const faqs = [
   {
     question: "Does this replace our current IDE?",
     answer:
-      "Not necessarily. You can adopt CodeHive as a collaboration layer on top of existing workflows.",
+      "Not necessarily. You can adopt CodeCollab as a collaboration layer on top of existing workflows.",
   },
 ];
 
@@ -138,12 +138,10 @@ const Hero = () => {
   return (
     <div
       className={cn(
-        "min-h-screen w-full bg-background text-foreground font-[\"Space_Grotesk\"]",
-        "bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(251,191,36,0.25),rgba(255,255,255,0))]"
+        "min-h-screen w-full bg-background text-foreground font-[\"Space_Grotesk\"]"
       )}
     >
       <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
-      <div className="absolute top-0 right-0 h-[600px] w-[600px] bg-[radial-gradient(circle,rgba(251,146,60,0.18),transparent_60%)] blur-3xl pointer-events-none" />
       <HeroNavbar />
 
       <main className="container mx-auto max-w-6xl px-6 pb-24 pt-24 md:pt-32 space-y-28">
@@ -162,7 +160,7 @@ const Hero = () => {
               The collaborative engine for modern software teams.
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl">
-              CodeHive unifies ideation, building, and delivery into a single, intelligent workspace. Move from requirements to production with confidence.
+              CodeCollab unifies ideation, building, and delivery into a single, intelligent workspace. Move from requirements to production with confidence.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Link to="/auth">
@@ -194,14 +192,14 @@ const Hero = () => {
           >
             <div className="rounded-2xl bg-black/70 border border-border p-5 text-sm text-muted-foreground">
               <div className="flex items-center justify-between text-xs mb-4">
-                <span className="uppercase tracking-[0.3em]">CodeHive Console</span>
+                <span className="uppercase tracking-[0.3em]">CodeCollab Console</span>
                 <span className="text-amber-400">Live</span>
               </div>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <span className="text-amber-400">01</span>
                   <div>
-                    <p className="text-foreground">Spec -> implementation</p>
+                    <p className="text-foreground">{"Spec -> implementation"}</p>
                     <p className="text-xs">Agents generate scaffolded modules and tests.</p>
                   </div>
                 </div>
@@ -237,7 +235,7 @@ const Hero = () => {
 
         <section className="grid gap-8 lg:grid-cols-2 items-center">
           <div className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Why CodeHive</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Why CodeCollab</p>
             <h2 className="text-3xl md:text-4xl font-semibold">Align product, engineering, and delivery.</h2>
             <p className="text-muted-foreground">
               Replace fragmented tooling with a single workspace that keeps teams aligned. Everything from planning to execution lives in one place.
@@ -320,7 +318,7 @@ const Hero = () => {
           <div className="rounded-3xl border border-border bg-card/40 p-6 space-y-4">
             <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Integrations</p>
             <h2 className="text-3xl md:text-4xl font-semibold">Connected to your stack.</h2>
-            <p className="text-muted-foreground">Bring CodeHive into your existing workflows without migration pain.</p>
+            <p className="text-muted-foreground">Bring CodeCollab into your existing workflows without migration pain.</p>
             <div className="flex flex-wrap gap-3">
               {integrations.map((tool) => (
                 <span key={tool} className="rounded-full border border-border bg-background/40 px-3 py-1 text-xs">
@@ -431,7 +429,7 @@ const Hero = () => {
         <section className="rounded-3xl border border-border bg-card/40 p-8 md:p-12 text-center space-y-6">
           <h2 className="text-3xl md:text-4xl font-semibold">Ready to scale your delivery engine?</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Join teams that use CodeHive to turn ideas into production-ready software in days, not quarters.
+            Join teams that use CodeCollab to turn ideas into production-ready software in days, not quarters.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link to="/auth">
@@ -444,7 +442,7 @@ const Hero = () => {
 
       <footer className="border-t border-border py-8">
         <div className="container mx-auto max-w-6xl px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} CodeHive. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} CodeCollab. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <a href="#" className="hover:text-foreground">
               <Twitter className="h-4 w-4" />

@@ -49,15 +49,14 @@ function AccessManagement() {
         <main className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
           <Toaster position="bottom-right" />
           <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-10 pointer-events-none" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -mt-48" />
           
           <div className="max-w-5xl mx-auto space-y-12 relative z-10">
         <header className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-2">
-            <ShieldCheck className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Security Protocol</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-2">
+            <ShieldCheck className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Security Protocol</span>
           </div>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Access <span className="text-primary">Registry</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Access <span className="text-white/60">Registry</span></h1>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Manage permissions and infrastructure requests</p>
         </header>
 
@@ -113,7 +112,7 @@ function AccessManagement() {
                           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter italic">Access Authorized</span>
                         </div>
                       ) : (
-                        <Button
+                         <Button
                           onClick={() => {
                             setAccessManagementProjects((current) =>
                               current.map((p) =>
@@ -128,9 +127,9 @@ function AccessManagement() {
                             });
                             toast.success(`Access granted for ${project.projectName}`);
                           }}
-                          className="h-9 px-6 rounded-xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all"
+                          className="h-9 px-6 rounded-xl bg-white text-black hover:bg-neutral-200 text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-[1.05] active:scale-95 transition-all"
                         >
-                          <UserPlus className="w-3 h-3 mr-2 text-white" />
+                          <UserPlus className="w-3 h-3 mr-2 text-black" />
                           Authorize
                         </Button>
                       )}

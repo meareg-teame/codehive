@@ -115,18 +115,12 @@ export const ProjectCard = ({
       animate="visible"
       exit="hidden"
       layout
-      className="relative group"
+      className="relative group h-full"
     >
-      <div
-        className={cn(
-          "absolute -inset-0.5 rounded-xl blur-sm bg-gradient-to-r from-primary to-secondary opacity-25 group-hover:opacity-50 transition duration-1000",
-          "group-hover:duration-200 animate-tilt"
-        )}
-      />
-      <div className="relative flex flex-col h-full bg-card p-6 rounded-xl shadow-md border border-border">
+      <div className="relative flex flex-col h-full bg-card p-6 rounded-xl shadow-md border border-white/10 hover:border-white/20 transition-all duration-300">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <LanguageIcon className="w-8 h-8 text-primary" />
+            <LanguageIcon className="w-8 h-8 text-white/80" />
             <h3 className="text-lg font-semibold text-foreground">
               {project.name}
             </h3>
@@ -163,7 +157,7 @@ export const ProjectCard = ({
         <div className="mt-6 flex gap-2">
           <Button
             onClick={() => onSelect(project._id)}
-            className="flex-1"
+            className="flex-1 bg-neutral-900 text-white hover:bg-neutral-800 border border-white/10"
             variant="outline"
           >
             Open <ExternalLink className="w-4 h-4 ml-2" />

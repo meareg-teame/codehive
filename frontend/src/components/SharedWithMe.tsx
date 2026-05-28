@@ -61,14 +61,13 @@ function SharedWithMe() {
           
           <div className="flex flex-col w-full max-w-7xl mx-auto space-y-12 relative z-10">
           <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/10 blur-[180px] rounded-full pointer-events-none -mt-48 -mr-48 animate-pulse" />
           
         <header className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-2">
-            <Users className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Collaborative Clusters</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-2">
+            <Users className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Collaborative Clusters</span>
           </div>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Shared <span className="text-primary">Workspace</span></h1>
+          <h1 className="text-4xl font-black uppercase italic tracking-tighter">Shared <span className="text-white/60">Workspace</span></h1>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">External environments shared with your identity</p>
         </header>
 
@@ -113,7 +112,7 @@ function SharedWithMe() {
                     </div>
 
                     <div className="col-span-3 flex items-center gap-3">
-                       <div className="w-9 h-9 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-black italic text-primary">
+                       <div className="w-9 h-9 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center text-[10px] font-black italic text-white/80">
                           {project.owner[0].toUpperCase()}
                        </div>
                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80 italic">{project.owner}</span>
@@ -122,9 +121,9 @@ function SharedWithMe() {
                     <div className="col-span-3 flex justify-end gap-2">
                       <Button
                         onClick={() => navigate("/editor/" + project._id)}
-                        className="h-10 px-6 rounded-2xl bg-gradient-to-r from-primary to-[oklch(0.8_0.2_210)] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.05] active:scale-95 transition-all"
+                        className="h-10 px-6 rounded-2xl bg-white text-black hover:bg-neutral-200 text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-[1.05] active:scale-95 transition-all"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 mr-2 text-white" />
+                        <ExternalLink className="w-3.5 h-3.5 mr-2 text-black" />
                         Initialize
                       </Button>
 

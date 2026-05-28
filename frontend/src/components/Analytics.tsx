@@ -34,7 +34,7 @@ import {
   Layers
 } from "lucide-react";
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const COLORS = ['#ffffff', '#e5e5e5', '#a3a3a3', '#737373', '#525252', '#262626'];
 
 function Analytics() {
   const navigate = useNavigate();
@@ -131,15 +131,14 @@ function Analytics() {
       <Sidebar />
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <div className="absolute inset-0 bg-[url('../../grid.svg')] opacity-5 pointer-events-none" />
-        <div className="absolute top-0 left-1/3 w-[800px] h-[500px] bg-primary/10 blur-[180px] rounded-full pointer-events-none -mt-48 animate-pulse" />
 
         <header className="h-14 border-b border-white/10 flex items-center justify-between px-8 bg-background/50 backdrop-blur-xl shrink-0 relative z-20">
           <div className="flex items-center gap-4">
              <div className="md:hidden">
                <MobileSidebar />
              </div>
-             <Activity className="w-4 h-4 text-primary" />
-             <h2 className="text-xs font-black uppercase tracking-widest italic">Intelligence Protocol</h2>
+             <Activity className="w-4 h-4 text-muted-foreground" />
+             <h2 className="text-xs font-black uppercase tracking-widest italic text-muted-foreground">Intelligence Protocol</h2>
           </div>
         </header>
 
@@ -153,29 +152,28 @@ function Analytics() {
               </div>
             )}
             <header className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-2">
-                <Activity className="w-3 h-3 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Intelligence Stream</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full mb-2">
+                <Activity className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Intelligence Stream</span>
               </div>
-              <h1 className="text-4xl font-black uppercase italic tracking-tighter">System <span className="text-primary">Intelligence</span></h1>
+              <h1 className="text-4xl font-black uppercase italic tracking-tighter">System <span className="text-white/60">Intelligence</span></h1>
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Neural analytics and infrastructure performance metrics</p>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { title: "Active Sessions", value: personalStats?.totalSessions || 0, icon: Calendar, color: "text-blue-400" },
-                { title: "Uptime Sync", value: formatDuration(personalStats?.totalTimeInSessions || 0), icon: Clock, color: "text-emerald-400" },
-                { title: "Primary Stack", value: personalStats?.mostUsedLanguage || "N/A", icon: Code, color: "text-amber-400" },
-                { title: "Binary Execs", value: personalStats?.totalExecutions || 0, icon: Play, color: "text-purple-400" }
+                { title: "Active Sessions", value: personalStats?.totalSessions || 0, icon: Calendar, color: "text-white/60" },
+                { title: "Uptime Sync", value: formatDuration(personalStats?.totalTimeInSessions || 0), icon: Clock, color: "text-white/60" },
+                { title: "Primary Stack", value: personalStats?.mostUsedLanguage || "N/A", icon: Code, color: "text-white/60" },
+                { title: "Binary Execs", value: personalStats?.totalExecutions || 0, icon: Play, color: "text-white/60" }
               ].map((stat, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="p-8 rounded-[2rem] glass hover:border-primary/30 transition-all group relative overflow-hidden shadow-xl"
+                  className="p-8 rounded-[2rem] glass hover:border-white/20 transition-all group relative overflow-hidden shadow-xl"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-[oklch(0.8_0.2_210)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                   <div className="relative z-10 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 italic">{stat.title}</span>
@@ -347,7 +345,7 @@ function Analytics() {
                 )}
               </AnimatePresence>
               <footer className="py-12 opacity-15 text-[10px] font-bold uppercase tracking-[0.4em] text-center text-muted-foreground">
-                Intelligence Protocol v2.4.0 · CodeHive Collaborative Systems
+                Intelligence Protocol v2.4.0 · CodeCollab Collaborative Systems
               </footer>
             </section>
           </div>
