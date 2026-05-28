@@ -93,9 +93,18 @@ export function createYjsServer(httpServer) {
   wss.on("connection", setupWSConnection);
 
   httpServer.on("upgrade", (request, socket, head) => {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit("connection", ws, request);
-    });
+    try {
+      const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+      if (url.pathname.startsWith("/socket.io")) {
+        return; // Allow Socket.io to handle its own upgrades
+      }
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    } catch (err) {
+      console.error("Yjs server upgrade handling error:", err);
+      socket.destroy();
+    }
   });
 
   return wss;
