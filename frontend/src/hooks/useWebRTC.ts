@@ -32,6 +32,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
   const streamRef = useRef<MediaStream | null>(null);
 
   const updatePeers = () => {
+    console.log("[useWebRTC] updatePeers called, peersRef.current:", new Map(peersRef.current));
     setPeers(new Map(peersRef.current));
   };
 
@@ -137,7 +138,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     isInitiator: boolean,
     remoteUserName: string
   ) => {
-    console.log("[useWebRTC] Creating peer:", { userToSignal, isInitiator });
+    console.log("[useWebRTC] Creating peer:", { userToSignal, callerId, isInitiator, remoteUserName });
     const existingPeer = peersRef.current.get(userToSignal);
     if (existingPeer) {
       console.log("[useWebRTC] Peer already exists, returning existing");
@@ -149,13 +150,19 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
       trickle: true,
       stream,
       config: {
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:global.stun.twilio.com:3478" },
+        ],
       },
     });
 
+    console.log("[useWebRTC] Peer instance created:", peer);
+
     peer.on("signal", (signal) => {
-      console.log("[useWebRTC] Peer signal:", { userToSignal, signal });
+      console.log("[useWebRTC] Peer signal event:", { userToSignal, signal });
       if (signal.type === "offer") {
+        console.log("[useWebRTC] Sending webrtc:offer to", userToSignal);
         socket.emit("webrtc:offer", {
           targetSocketId: userToSignal,
           offer: signal,
@@ -163,16 +170,22 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
           senderUserName: userName,
         });
       } else if (signal.type === "answer") {
+        console.log("[useWebRTC] Sending webrtc:answer to", userToSignal);
         socket.emit("webrtc:answer", {
           targetSocketId: userToSignal,
           answer: signal,
         });
       } else if ("candidate" in signal) {
+        console.log("[useWebRTC] Sending webrtc:ice-candidate to", userToSignal);
         socket.emit("webrtc:ice-candidate", {
           targetSocketId: userToSignal,
           candidate: signal,
         });
       }
+    });
+
+    peer.on("connect", () => {
+      console.log("[useWebRTC] Peer connected!", { userToSignal });
     });
 
     peer.on("stream", (remoteStream) => {
@@ -200,6 +213,10 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
         peersRef.current.set(userToSignal, peerData);
         updatePeers();
       }
+    });
+
+    peer.on("track", (track, stream) => {
+      console.log("[useWebRTC] Received remote track:", { userToSignal, track, stream });
     });
 
     peer.on("close", () => {
@@ -232,7 +249,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     return peer;
   };
 
-  const joinCall = async () => {
+    const joinCall = async () => {
     if (isInCall) return;
     console.log("[useWebRTC] Joining call...");
     setCallError(null);
@@ -251,6 +268,10 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
 
       console.log("[useWebRTC] Emitting webrtc:join-call");
       socket.emit("webrtc:join-call", { roomId, userId, userName });
+      
+      // Emit initial media state
+      console.log("[useWebRTC] Emitting initial webrtc:media-state", { isMuted, isCameraOff });
+      socket.emit("webrtc:media-state", { roomId, isMuted, isCameraOff });
     } catch (error) {
       console.error("[useWebRTC] Error joining call:", error);
       setCallError(getReadableMediaError(error));
@@ -277,6 +298,8 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
   }, [roomId, socket, userId]);
 
   useEffect(() => {
+    console.log("[useWebRTC] Setting up socket listeners");
+    
     socket.on("webrtc:call-full", () => {
       console.log("[useWebRTC] Received webrtc:call-full");
       setCallError("Room is at full capacity (max 6 participants).");
@@ -289,7 +312,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     });
 
     socket.on("webrtc:all-call-participants", (users: any[]) => {
-      console.log("[useWebRTC] Received webrtc:all-call-participants:", users);
+      console.log("[useWebRTC] Received webrtc:all-call-participants:", users, "streamRef.current:", streamRef.current);
       if (!streamRef.current) return;
       users.forEach((user) => {
         createPeer(user.socketId, socket.id as string, streamRef.current!, true, user.userName);
@@ -298,7 +321,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     });
 
     socket.on("webrtc:user-joined-call", (payload) => {
-      console.log("[useWebRTC] Received webrtc:user-joined-call:", payload);
+      console.log("[useWebRTC] Received webrtc:user-joined-call:", payload, "streamRef.current:", streamRef.current);
       if (!streamRef.current) return;
       createPeer(payload.socketId, socket.id as string, streamRef.current, false, payload.userName);
       setCallParticipantCount(prev => prev + 1);
@@ -307,10 +330,12 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     socket.on("webrtc:offer", (payload) => {
       console.log("[useWebRTC] Received webrtc:offer:", payload);
       const peerData = peersRef.current.get(payload.senderSocketId);
+      console.log("[useWebRTC] Existing peer data for", payload.senderSocketId, ":", peerData);
       if (peerData) {
         peerData.peer.signal(payload.offer);
       } else if (streamRef.current) {
         // If we don't have a peer for them yet, maybe they joined at the exact same time
+        console.log("[useWebRTC] Creating new peer to answer offer");
         const peer = createPeer(payload.senderSocketId, socket.id as string, streamRef.current, false, payload.senderUserName);
         peer.signal(payload.offer);
       }
@@ -319,6 +344,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     socket.on("webrtc:answer", (payload) => {
       console.log("[useWebRTC] Received webrtc:answer:", payload);
       const peerData = peersRef.current.get(payload.senderSocketId);
+      console.log("[useWebRTC] Peer data for", payload.senderSocketId, ":", peerData);
       if (peerData) {
         peerData.peer.signal(payload.answer);
       }
@@ -327,6 +353,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     socket.on("webrtc:ice-candidate", (payload) => {
       console.log("[useWebRTC] Received webrtc:ice-candidate:", payload);
       const peerData = peersRef.current.get(payload.senderSocketId);
+      console.log("[useWebRTC] Peer data for", payload.senderSocketId, ":", peerData);
       if (peerData) {
         peerData.peer.signal(payload.candidate);
       }
@@ -354,6 +381,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     });
 
     return () => {
+      console.log("[useWebRTC] Cleaning up socket listeners");
       socket.off("webrtc:call-full");
       socket.off("webrtc:call-status");
       socket.off("webrtc:all-call-participants");

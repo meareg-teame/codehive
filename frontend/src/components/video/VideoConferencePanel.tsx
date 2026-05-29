@@ -31,6 +31,8 @@ export function VideoConferencePanel({ roomId, socket, userId, userName }: Video
     callParticipantCount,
   } = useWebRTC({ roomId, socket, userId, userName });
 
+  console.log("[VideoConferencePanel] Rendering, peers:", peers, "localStream:", localStream);
+
   const [activeSpeakerId, setActiveSpeakerId] = useState<string | null>(null);
 
   // Active speaker detection
@@ -177,17 +179,28 @@ export function VideoConferencePanel({ roomId, socket, userId, userName }: Video
             connectionQuality="good"
           />
 
-          {Array.from(peers.entries()).map(([id, peerData]) => (
-            <VideoTile
-              key={id}
-              stream={peerData.stream}
-              userName={peerData.userName}
-              isMuted={peerData.isMuted}
-              isCameraOff={peerData.isCameraOff || !peerData.stream || peerData.stream.getVideoTracks().length === 0}
-              isActiveSpeaker={activeSpeakerId === id}
-              connectionQuality="good"
-            />
-          ))}
+          {Array.from(peers.entries()).map(([id, peerData]) => {
+            // Only show camera off if explicitly toggled off by user, or if no stream at all
+            // Don't check videoTracks.length === 0 because tracks may be added later via addtrack event
+            const shouldShowCameraOff = peerData.isCameraOff || !peerData.stream;
+            console.log(`[VideoConferencePanel] Peer ${peerData.userName}:`, {
+              isCameraOff: peerData.isCameraOff,
+              hasStream: !!peerData.stream,
+              videoTracks: peerData.stream?.getVideoTracks().length,
+              shouldShowCameraOff
+            });
+            return (
+              <VideoTile
+                key={id}
+                stream={peerData.stream}
+                userName={peerData.userName}
+                isMuted={peerData.isMuted}
+                isCameraOff={shouldShowCameraOff}
+                isActiveSpeaker={activeSpeakerId === id}
+                connectionQuality="good"
+              />
+            );
+          })}
         </div>
       </div>
 
