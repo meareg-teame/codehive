@@ -8,8 +8,8 @@ export type SocketOptions = {
 
 export function createAppSocket(options: SocketOptions = {}): Socket {
   return io(BACKEND_URL, {
-    transports: ["websocket", "polling"],  // websocket-first — Railway supports native WS
-    withCredentials: true,
+    // Polling-first is more reliable across Firefox, proxies, and hosted WS upgrades.
+    transports: ["polling", "websocket"],
     reconnection: options.reconnection ?? true,
     timeout: options.timeout ?? 10000,
   });
