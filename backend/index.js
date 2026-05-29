@@ -108,12 +108,38 @@ server.listen(PORT, () => {
 
 //socket io part gulo
 
-const roomParticipants = new Map();
 const sessionStates = new Map(); // roomId -> { state, dbId }
 let sessionTrackingWarningShown = false;
 
 const emitRoomState = (roomId, newState) => {
   io.to(roomId).emit("room:state-change", { roomId, newState });
+};
+
+const getCallRoomId = (roomId) => `${roomId}:webrtc`;
+
+const getCallParticipants = (roomId) => {
+  const callRoomId = getCallRoomId(roomId);
+  const socketIds = io.sockets.adapter.rooms.get(callRoomId);
+  if (!socketIds) return [];
+
+  return Array.from(socketIds)
+    .map((socketId) => {
+      const participantSocket = io.sockets.sockets.get(socketId);
+      if (!participantSocket) return null;
+
+      const userId = participantSocket.data.webrtcUserId;
+      const userName = participantSocket.data.webrtcUserName;
+      if (!userId || !userName) return null;
+
+      return { socketId, userId, userName };
+    })
+    .filter(Boolean);
+};
+
+const emitCallStatus = (roomId) => {
+  io.to(roomId).emit("webrtc:call-status", {
+    participants: getCallParticipants(roomId),
+  });
 };
 
 const warnSessionTracking = (error) => {
@@ -284,15 +310,9 @@ io.on("connection", (socket) => {
           io.to(roomId).emit("room:sync-start", { roomId });
         }
 
-        // Send current webrtc call participants if any
-        const webrtcParticipants = roomParticipants.get(roomId);
-        if (webrtcParticipants) {
-          const participantsList = [];
-          webrtcParticipants.forEach((user, pSocketId) => {
-            participantsList.push({ socketId: pSocketId, ...user });
-          });
-          socket.emit("webrtc:call-status", { participants: participantsList });
-        }
+        socket.emit("webrtc:call-status", {
+          participants: getCallParticipants(roomId),
+        });
       } catch (error) {
         warnSessionTracking(error);
       }
@@ -384,34 +404,35 @@ io.on("connection", (socket) => {
 
   socket.on("webrtc:join-call", ({ roomId, userId, userName }) => {
     const MAX_PARTICIPANTS = parseInt(process.env.ROOM_MAX_PARTICIPANTS || "6", 10);
-    
-    if (!roomParticipants.has(roomId)) {
-      roomParticipants.set(roomId, new Map());
-    }
-    const participants = roomParticipants.get(roomId);
-    
-    if (participants.size >= MAX_PARTICIPANTS) {
+
+    const currentParticipants = getCallParticipants(roomId);
+    if (currentParticipants.length >= MAX_PARTICIPANTS) {
       socket.emit("webrtc:call-full");
       return;
     }
-    
-    participants.set(socket.id, { userId, userName });
-    socket.join(roomId);
-    
-    // Get all OTHER users
-    const others = [];
-    participants.forEach((user, pSocketId) => {
-      if (pSocketId !== socket.id) {
-        others.push({ socketId: pSocketId, ...user });
-      }
-    });
-    
-    socket.emit("webrtc:all-call-participants", others);
-    socket.to(roomId).emit("webrtc:user-joined-call", {
+
+    const existingRoomId = socket.data.webrtcRoomId;
+    if (existingRoomId && existingRoomId !== roomId) {
+      const previousCallRoomId = getCallRoomId(existingRoomId);
+      socket.to(previousCallRoomId).emit("webrtc:user-left-call", { socketId: socket.id });
+      socket.leave(previousCallRoomId);
+      emitCallStatus(existingRoomId);
+    }
+
+    socket.data.webrtcRoomId = roomId;
+    socket.data.webrtcUserId = userId;
+    socket.data.webrtcUserName = userName;
+
+    const callRoomId = getCallRoomId(roomId);
+    socket.join(callRoomId);
+
+    socket.emit("webrtc:all-call-participants", currentParticipants);
+    socket.to(callRoomId).emit("webrtc:user-joined-call", {
       socketId: socket.id,
       userId,
       userName
     });
+    emitCallStatus(roomId);
   });
 
   socket.on("webrtc:offer", ({ targetSocketId, offer, senderSocketId, senderUserName }) => {
@@ -437,7 +458,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("webrtc:media-state", ({ roomId, isMuted, isCameraOff }) => {
-    socket.to(roomId).emit("webrtc:media-state", {
+    socket.to(getCallRoomId(roomId)).emit("webrtc:media-state", {
       socketId: socket.id,
       isMuted,
       isCameraOff
@@ -445,16 +466,18 @@ io.on("connection", (socket) => {
   });
 
   const handleLeaveCall = (roomId) => {
-    if (!roomId) return;
-    const participants = roomParticipants.get(roomId);
-    if (participants && participants.has(socket.id)) {
-      participants.delete(socket.id);
-      socket.to(roomId).emit("webrtc:user-left-call", { socketId: socket.id });
-      socket.leave(roomId);
-      if (participants.size === 0) {
-        roomParticipants.delete(roomId);
-      }
-    }
+    const activeRoomId = roomId || socket.data.webrtcRoomId;
+    if (!activeRoomId) return;
+
+    const callRoomId = getCallRoomId(activeRoomId);
+    if (!socket.rooms.has(callRoomId)) return;
+
+    socket.to(callRoomId).emit("webrtc:user-left-call", { socketId: socket.id });
+    socket.leave(callRoomId);
+    socket.data.webrtcRoomId = undefined;
+    socket.data.webrtcUserId = undefined;
+    socket.data.webrtcUserName = undefined;
+    emitCallStatus(activeRoomId);
   };
 
   socket.on("webrtc:leave-call", ({ roomId }) => {
@@ -462,13 +485,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", async () => {
-    // Find rooms this socket was in for webrtc
-    for (const [roomId, participants] of roomParticipants.entries()) {
-      if (participants.has(socket.id)) {
-        handleLeaveCall(roomId);
-      }
-    }
-    
+    handleLeaveCall();
+
     // Handle room session state
     await handleRoomLeave(socket.id);
   });
