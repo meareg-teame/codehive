@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MicOff, Signal, SignalHigh, SignalLow, SignalMedium, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -22,6 +22,7 @@ export function VideoTile({
   isLocal = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [, forceUpdate] = useState({});
   
   // Log stream details
   const videoTracks = stream?.getVideoTracks() ?? [];
@@ -41,8 +42,10 @@ export function VideoTile({
     const video = videoRef.current;
     console.log("[VideoTile] useEffect, video ref:", video, "stream:", stream);
     if (!video) {
-      console.warn("[VideoTile] No video ref!");
-      return;
+      console.warn("[VideoTile] No video ref! Will retry...");
+      // Retry after a short delay to allow ref to be set
+      const timeoutId = setTimeout(() => forceUpdate({}), 50);
+      return () => clearTimeout(timeoutId);
     }
 
     if (!stream) {
