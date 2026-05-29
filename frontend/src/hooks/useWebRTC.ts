@@ -8,6 +8,7 @@ interface PeerData {
   userName: string;
   isMuted: boolean;
   isCameraOff: boolean;
+  cleanupStreamListeners?: () => void;
 }
 
 interface UseWebRTCProps {
@@ -178,7 +179,24 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
       console.log("[useWebRTC] Received remote stream:", { userToSignal, remoteStream });
       const peerData = peersRef.current.get(userToSignal);
       if (peerData) {
+        peerData.cleanupStreamListeners?.();
+
+        const syncRemoteStreamState = () => {
+          const currentPeerData = peersRef.current.get(userToSignal);
+          if (!currentPeerData) return;
+          currentPeerData.stream = remoteStream;
+          peersRef.current.set(userToSignal, currentPeerData);
+          updatePeers();
+        };
+
+        remoteStream.addEventListener("addtrack", syncRemoteStreamState);
+        remoteStream.addEventListener("removetrack", syncRemoteStreamState);
+
         peerData.stream = remoteStream;
+        peerData.cleanupStreamListeners = () => {
+          remoteStream.removeEventListener("addtrack", syncRemoteStreamState);
+          remoteStream.removeEventListener("removetrack", syncRemoteStreamState);
+        };
         peersRef.current.set(userToSignal, peerData);
         updatePeers();
       }
@@ -186,6 +204,8 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
 
     peer.on("close", () => {
       console.log("[useWebRTC] Peer closed:", userToSignal);
+      const peerData = peersRef.current.get(userToSignal);
+      peerData?.cleanupStreamListeners?.();
       peer.destroy();
       peersRef.current.delete(userToSignal);
       updatePeers();
@@ -193,12 +213,20 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
 
     peer.on("error", (err) => {
       console.error("[useWebRTC] Peer error:", err, "for user:", userToSignal);
+      const peerData = peersRef.current.get(userToSignal);
+      peerData?.cleanupStreamListeners?.();
       peer.destroy();
       peersRef.current.delete(userToSignal);
       updatePeers();
     });
 
-    peersRef.current.set(userToSignal, { peer, stream: null, userName: remoteUserName, isMuted: false, isCameraOff: false });
+    peersRef.current.set(userToSignal, {
+      peer,
+      stream: null,
+      userName: remoteUserName,
+      isMuted: false,
+      isCameraOff: false,
+    });
     updatePeers();
 
     return peer;
