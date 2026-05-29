@@ -133,12 +133,16 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
 
   const createPeer = (
     userToSignal: string,
-    callerId: string,
     stream: MediaStream,
     isInitiator: boolean,
     remoteUserName: string
   ) => {
-    console.log("[useWebRTC] Creating peer:", { userToSignal, callerId, isInitiator, remoteUserName });
+    console.log("[useWebRTC] Creating peer:", { 
+      userToSignal, 
+      currentSocketId: socket.id, 
+      isInitiator, 
+      remoteUserName 
+    });
     const existingPeer = peersRef.current.get(userToSignal);
     if (existingPeer) {
       console.log("[useWebRTC] Peer already exists, returning existing");
@@ -153,33 +157,39 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
         iceServers: [
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:global.stun.twilio.com:3478" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" },
+          { urls: "stun:stun3.l.google.com:19302" },
+          { urls: "stun:stun4.l.google.com:19302" },
         ],
       },
     });
 
     console.log("[useWebRTC] Peer instance created:", peer);
 
-    peer.on("signal", (signal) => {
-      console.log("[useWebRTC] Peer signal event:", { userToSignal, signal });
+    peer.on("signal", (signal: any) => {
+      console.log("[useWebRTC] Peer signal event:", { userToSignal, signalType: signal.type || (signal.candidate ? 'candidate' : 'unknown') });
       if (signal.type === "offer") {
-        console.log("[useWebRTC] Sending webrtc:offer to", userToSignal);
+        console.log("[useWebRTC] Sending webrtc:offer to", userToSignal, "from", socket.id);
         socket.emit("webrtc:offer", {
           targetSocketId: userToSignal,
           offer: signal,
-          senderSocketId: callerId,
+          senderSocketId: socket.id,
           senderUserName: userName,
         });
       } else if (signal.type === "answer") {
-        console.log("[useWebRTC] Sending webrtc:answer to", userToSignal);
+        console.log("[useWebRTC] Sending webrtc:answer to", userToSignal, "from", socket.id);
         socket.emit("webrtc:answer", {
           targetSocketId: userToSignal,
           answer: signal,
+          senderSocketId: socket.id,
         });
       } else if ("candidate" in signal) {
-        console.log("[useWebRTC] Sending webrtc:ice-candidate to", userToSignal);
+        console.log("[useWebRTC] Sending webrtc:ice-candidate to", userToSignal, "from", socket.id);
         socket.emit("webrtc:ice-candidate", {
           targetSocketId: userToSignal,
           candidate: signal,
+          senderSocketId: socket.id,
         });
       }
     });
@@ -315,7 +325,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
       console.log("[useWebRTC] Received webrtc:all-call-participants:", users, "streamRef.current:", streamRef.current);
       if (!streamRef.current) return;
       users.forEach((user) => {
-        createPeer(user.socketId, socket.id as string, streamRef.current!, true, user.userName);
+        createPeer(user.socketId, streamRef.current!, true, user.userName);
       });
       setCallParticipantCount(users.length + 1);
     });
@@ -323,7 +333,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
     socket.on("webrtc:user-joined-call", (payload) => {
       console.log("[useWebRTC] Received webrtc:user-joined-call:", payload, "streamRef.current:", streamRef.current);
       if (!streamRef.current) return;
-      createPeer(payload.socketId, socket.id as string, streamRef.current, false, payload.userName);
+      createPeer(payload.socketId, streamRef.current, false, payload.userName);
       setCallParticipantCount(prev => prev + 1);
     });
 
@@ -336,7 +346,7 @@ export function useWebRTC({ roomId, socket, userId, userName }: UseWebRTCProps) 
       } else if (streamRef.current) {
         // If we don't have a peer for them yet, maybe they joined at the exact same time
         console.log("[useWebRTC] Creating new peer to answer offer");
-        const peer = createPeer(payload.senderSocketId, socket.id as string, streamRef.current, false, payload.senderUserName);
+        const peer = createPeer(payload.senderSocketId, streamRef.current, false, payload.senderUserName);
         peer.signal(payload.offer);
       }
     });

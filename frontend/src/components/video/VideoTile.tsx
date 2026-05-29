@@ -22,85 +22,42 @@ export function VideoTile({
   isLocal = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [, forceUpdate] = useState({});
-  
-  // Log stream details
-  const videoTracks = stream?.getVideoTracks() ?? [];
-  const audioTracks = stream?.getAudioTracks() ?? [];
-  console.log("[VideoTile] Rendering", { 
-    userName, 
-    isLocal, 
-    stream, 
-    isCameraOff,
-    videoTracksCount: videoTracks.length,
-    audioTracksCount: audioTracks.length,
-    videoTrackEnabled: videoTracks[0]?.enabled,
-    videoTrackReadyState: videoTracks[0]?.readyState,
-  });
 
   useEffect(() => {
     const video = videoRef.current;
-    console.log("[VideoTile] useEffect, video ref:", video, "stream:", stream);
-    if (!video) {
-      console.warn("[VideoTile] No video ref! Will retry...");
-      // Retry after a short delay to allow ref to be set
-      const timeoutId = setTimeout(() => forceUpdate({}), 50);
-      return () => clearTimeout(timeoutId);
-    }
+    if (!video) return;
 
     if (!stream) {
-      console.log("[VideoTile] No stream, setting srcObject to null");
       video.srcObject = null;
       return;
     }
 
-    console.log("[VideoTile] Setting srcObject to stream:", stream);
     video.srcObject = stream;
 
     const playVideo = async () => {
       try {
-        console.log("[VideoTile] Attempting to play video...");
         await video.play();
-        console.log("[VideoTile] Video playing successfully!");
       } catch (error) {
-        console.error("[VideoTile] Video playback failed:", error);
-        // Try playing muted for autoplay policies
-        video.muted = true;
-        try {
-          await video.play();
-          console.log("[VideoTile] Video playing muted (autoplay policy workaround)");
-        } catch (e) {
-          console.error("[VideoTile] Video playback failed even muted:", e);
-        }
+        // Mobile browsers can delay autoplay until metadata or tracks are ready.
+        console.warn("[VideoTile] Video playback delayed", error);
       }
     };
 
     const handleLoadedMetadata = () => {
-      console.log("[VideoTile] handleLoadedMetadata, video dimensions:", video.videoWidth, "x", video.videoHeight);
-      void playVideo();
-    };
-
-    const handleCanPlay = () => {
-      console.log("[VideoTile] handleCanPlay");
       void playVideo();
     };
 
     const handleAddTrack = () => {
-      console.log("[VideoTile] handleAddTrack");
       void playVideo();
     };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("canplay", handleCanPlay);
     stream.addEventListener("addtrack", handleAddTrack);
 
-    // Try playing immediately
     void playVideo();
 
     return () => {
-      console.log("[VideoTile] cleanup");
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("canplay", handleCanPlay);
       stream.removeEventListener("addtrack", handleAddTrack);
     };
   }, [stream]);

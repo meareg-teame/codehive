@@ -180,18 +180,10 @@ export function VideoConferencePanel({ roomId, socket, userId, userName }: Video
           />
 
           {Array.from(peers.entries()).map(([id, peerData]) => {
-            // Only show camera off if explicitly toggled off by user, or if no stream at all
-            // Don't check videoTracks.length === 0 because tracks may be added later via addtrack event
             const shouldShowCameraOff = peerData.isCameraOff || !peerData.stream;
-            console.log(`[VideoConferencePanel] Peer ${peerData.userName}:`, {
-              isCameraOff: peerData.isCameraOff,
-              hasStream: !!peerData.stream,
-              videoTracks: peerData.stream?.getVideoTracks().length,
-              shouldShowCameraOff
-            });
             return (
               <VideoTile
-                key={id}
+                key={`${id}-${peerData.stream?.id || 'no-stream'}`}
                 stream={peerData.stream}
                 userName={peerData.userName}
                 isMuted={peerData.isMuted}

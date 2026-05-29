@@ -435,9 +435,9 @@ io.on("connection", (socket) => {
     emitCallStatus(roomId);
   });
 
-  socket.on("webrtc:offer", ({ targetSocketId, offer, senderSocketId, senderUserName }) => {
+  socket.on("webrtc:offer", ({ targetSocketId, offer, senderUserName }) => {
     io.to(targetSocketId).emit("webrtc:offer", {
-      senderSocketId,
+      senderSocketId: socket.id,
       offer,
       senderUserName
     });
