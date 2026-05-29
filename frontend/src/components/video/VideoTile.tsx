@@ -24,9 +24,42 @@ export function VideoTile({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (!stream) {
+      video.srcObject = null;
+      return;
     }
+
+    video.srcObject = stream;
+
+    const playVideo = async () => {
+      try {
+        await video.play();
+      } catch (error) {
+        // Mobile browsers can delay autoplay until metadata or tracks are ready.
+        console.warn("Video playback delayed", error);
+      }
+    };
+
+    const handleLoadedMetadata = () => {
+      void playVideo();
+    };
+
+    const handleAddTrack = () => {
+      void playVideo();
+    };
+
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    stream.addEventListener("addtrack", handleAddTrack);
+
+    void playVideo();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      stream.removeEventListener("addtrack", handleAddTrack);
+    };
   }, [stream]);
 
   const displayName = isLocal ? "You" : userName;
